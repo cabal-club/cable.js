@@ -49,7 +49,7 @@ class HASH_RESPONSE {
     return prependMsgLen(frame)
   }
   // takes a cablegram buffer and returns the json object: 
-  // { msgLen, msgType, reqID, hashes }
+  // { msgLen, msgType, reqid, hashes }
   static toJSON(buf) {
     let offset = 0
     // 1. get msgLen
@@ -62,9 +62,9 @@ class HASH_RESPONSE {
     if (msgType !== constants.HASH_RESPONSE) {
       throw new Error("decoded msgType is not of expected type (constants.HASH_RESPONSE)")
     }
-    // 3. get reqID
-    const reqID = buf.slice(offset, offset+constants.REQID_SIZE)
-    if (!isBufferSize(reqID, constants.REQID_SIZE)) { throw bufferExpected("reqID", constants.REQID_SIZE) }
+    // 3. get reqid
+    const reqid = buf.slice(offset, offset+constants.REQID_SIZE)
+    if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
     offset += constants.REQID_SIZE
     // 4. get hashCount
     const hashCount = decodeVarintSlice(buf, offset)
@@ -77,7 +77,7 @@ class HASH_RESPONSE {
     }
     if (!isArrayHashes(hashes)) { throw HASHES_EXPECTED }
 
-    return { msgLen, msgType, reqID, hashes }
+    return { msgLen, msgType, reqid, hashes }
   }
 }
 
@@ -119,7 +119,7 @@ class HASH_REQUEST {
   }
 
   // takes a cablegram buffer and returns the json object: 
-  // { msgLen, msgType, reqID, ttl, hashes }
+  // { msgLen, msgType, reqid, ttl, hashes }
   static toJSON(buf) {
     let offset = 0
     // 1. get msgLen
@@ -132,9 +132,9 @@ class HASH_REQUEST {
     if (msgType !== constants.HASH_REQUEST) {
       throw new Error("decoded msgType is not of expected type (constants.HASH_REQUEST)")
     }
-    // 3. get reqID
-    const reqID = buf.slice(offset, offset+constants.REQID_SIZE)
-    if (!isBufferSize(reqID, constants.REQID_SIZE)) { throw bufferExpected("reqID", constants.REQID_SIZE) }
+    // 3. get reqid
+    const reqid = buf.slice(offset, offset+constants.REQID_SIZE)
+    if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
     offset += constants.REQID_SIZE
     // 4. get ttl
     const ttl = decodeVarintSlice(buf, offset)
@@ -150,7 +150,7 @@ class HASH_REQUEST {
     }
     if (!isArrayHashes(hashes)) { throw HASHES_EXPECTED }
 
-    return { msgLen, msgType, reqID, ttl, hashes }
+    return { msgLen, msgType, reqid, ttl, hashes }
   }
 }
 
@@ -173,7 +173,7 @@ class CANCEL_REQUEST {
   }
 
   // takes a cablegram buffer and returns the json object: 
-  // { msgLen, msgType, reqID }
+  // { msgLen, msgType, reqid }
   static toJSON(buf) {
     let offset = 0
     // 1. get mshLen
@@ -186,11 +186,11 @@ class CANCEL_REQUEST {
     if (msgType !== constants.CANCEL_REQUEST) {
       throw new Error("decoded msgType is not of expected type (constants.CANCEL_REQUEST)")
     }
-    // 3. get reqID
-    const reqID = buf.slice(offset, offset+constants.REQID_SIZE)
+    // 3. get reqid
+    const reqid = buf.slice(offset, offset+constants.REQID_SIZE)
     offset += constants.REQID_SIZE
 
-    return { msgLen, msgType, reqID }
+    return { msgLen, msgType, reqid }
   }
 }
 
@@ -228,7 +228,7 @@ class TIME_RANGE_REQUEST {
   }
   
   // takes a cablegram buffer and returns the json object: 
-  // { msgLen, msgType, reqID, ttl, channel, timeStart, timeEnd, limit }
+  // { msgLen, msgType, reqid, ttl, channel, timeStart, timeEnd, limit }
   static toJSON(buf) {
     let offset = 0
     // 1. get msgLen
@@ -241,8 +241,8 @@ class TIME_RANGE_REQUEST {
     if (msgType !== constants.TIME_RANGE_REQUEST) {
       return new Error(`"decoded msgType (${msgType}) is not of expected type (constants.TIME_RANGE_REQUEST)`)
     }
-    // 3. get reqID
-    const reqID = buf.slice(offset, offset+constants.REQID_SIZE)
+    // 3. get reqid
+    const reqid = buf.slice(offset, offset+constants.REQID_SIZE)
     offset += constants.REQID_SIZE
     // 4. get ttl
     const ttl = decodeVarintSlice(buf, offset)
@@ -263,7 +263,7 @@ class TIME_RANGE_REQUEST {
     const limit = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
 
-    return { msgLen, msgType, reqID, ttl, channel, timeStart, timeEnd, limit }
+    return { msgLen, msgType, reqid, ttl, channel, timeStart, timeEnd, limit }
   }
 }
 
@@ -297,7 +297,7 @@ class CHANNEL_STATE_REQUEST {
     return prependMsgLen(frame)
   }
   // takes a cablegram buffer and returns the json object: 
-  // { msgLen, msgType, reqID, ttl, channel, limit, updates }
+  // { msgLen, msgType, reqid, ttl, channel, limit, updates }
   static toJSON(buf) {
     let offset = 0
     // 1. get msgLen
@@ -310,10 +310,10 @@ class CHANNEL_STATE_REQUEST {
     if (msgType !== constants.CHANNEL_STATE_REQUEST) {
       return new Error(`"decoded msgType (${msgType}) is not of expected type (constants.CHANNEL_STATE_REQUEST)`)
     }
-    // 3. get reqID
-    const reqID = buf.slice(offset, offset+constants.REQID_SIZE)
+    // 3. get reqid
+    const reqid = buf.slice(offset, offset+constants.REQID_SIZE)
     offset += constants.REQID_SIZE
-    if (!isBufferSize(reqID, constants.REQID_SIZE)) { throw bufferExpected("reqID", constants.REQID_SIZE) }
+    if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
     // 4. get ttl
     const ttl = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -330,7 +330,7 @@ class CHANNEL_STATE_REQUEST {
     const updates = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
 
-    return { msgLen, msgType, reqID, ttl, channel, limit, updates }
+    return { msgLen, msgType, reqid, ttl, channel, limit, updates }
   }
 }
 
@@ -356,7 +356,7 @@ class CHANNEL_LIST_REQUEST {
     return prependMsgLen(frame)
   }
   // takes a cablegram buffer and returns the json object: 
-  // { msgLen, msgType, reqID, ttl, limit }
+  // { msgLen, msgType, reqid, ttl, limit }
   static toJSON(buf) {
     let offset = 0
     // 1. get msgLen
@@ -369,10 +369,10 @@ class CHANNEL_LIST_REQUEST {
     if (msgType !== constants.CHANNEL_LIST_REQUEST) {
       return new Error(`"decoded msgType (${msgType}) is not of expected type (constants.CHANNEL_LIST_REQUEST)`)
     }
-    // 3. get reqID
-    const reqID = buf.slice(offset, offset+constants.REQID_SIZE)
+    // 3. get reqid
+    const reqid = buf.slice(offset, offset+constants.REQID_SIZE)
     offset += constants.REQID_SIZE
-    if (!isBufferSize(reqID, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
+    if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
     // 4. get ttl
     const ttl = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -380,7 +380,7 @@ class CHANNEL_LIST_REQUEST {
     const limit = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
 
-    return { msgLen, msgType, reqID, ttl, limit }
+    return { msgLen, msgType, reqid, ttl, limit }
   }
 }
 
