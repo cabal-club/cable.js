@@ -53,6 +53,9 @@ const DEFAULT_BUFFER_SIZE = 1024
 
 const REQID_SIZE = 4
 const HASH_SIZE = sodium.crypto_generichash_BYTES
+const PUBLICKEY_SIZE = sodium.crypto_sign_PUBLICKEYBYTES
+const SECRETKEY_SIZE = sodium.crypto_sign_SECRETKEYBYTES
+const SIGNATURE_SIZE = sodium.crypto_sign_BYTES
 
 module.exports = {
   HASH_RESPONSE,
@@ -74,5 +77,8 @@ module.exports = {
   DEFAULT_BUFFER_SIZE,
   MAX_VARINT_SIZE,
   REQID_SIZE,
-  HASH_SIZE
+  HASH_SIZE,
+  PUBLICKEY_SIZE,
+  SECRETKEY_SIZE,
+  SIGNATURE_SIZE
 }

@@ -3,6 +3,7 @@
 const b4a = require("b4a")
 const constants = require("./constants.js")
 const varint = require("varint")
+const crypto = require("./cryptography.js")
 
 // TODO (2023-01-10):
 // * in the create methods: improve their resiliency by detecting when the pre-allocated buffer will not be large enough, and reallocatIe a larger buffer
@@ -15,6 +16,9 @@ const varint = require("varint")
 // * numbers: ttl, limit, updates, timeStart, timeEnd
 // * hashes is a list of HASH_SIZE buffers
 // * strings: channel, topic, text
+
+// TODO (2023-01-11): regarding byte size of a string
+// is it enough to simply do str.length to get the correct byte size?
 
 const HASHES_EXPECTED = new Error("expected hashes to contain an array of hash-sized buffers")
 function bufferExpected (param, size) {
@@ -437,11 +441,49 @@ class CHANNEL_LIST_REQUEST {
   }
 }
 
-// class TEXT_POST {
-//   static create(pubkey, link, channel, timestamp, text)
-//   static toJSON(buf)
-// }
-//
+class TEXT_POST {
+  static create(publicKey, secretKey, link, channel, timestamp, text) {
+    if (!isBufferSize(publicKey, constants.PUBLICKEY_SIZE)) { throw bufferExpected("publicKey", constants.PUBLICKEY_SIZE) }
+    if (!isBufferSize(secretKey, constants.SECRETKEY_SIZE)) { throw bufferExpected("secretKey", constants.SECRETKEY_SIZE) }
+    if (!isBufferSize(link, constants.HASH_SIZE)) { throw bufferExpected("link", constants.HASH_SIZE) }
+    if (!isString(channel)) { throw stringExpected("channel") }
+    if (!isInteger(timestamp)) { throw integerExpected("timestamp") }
+    if (!isString(text)) { throw stringExpected("text") }
+    
+    let offset = 0
+    const message = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
+    // 1. write public key
+    offset += publicKey.copy(message, 0)
+    // 2. make space for signature, which is done last of all.
+    offset += constants.SIGNATURE_SIZE
+    // 3. write link, which is represents a hash i.e. a buffer
+    offset += link.copy(message, offset)
+    // 4. write postType
+    offset += writeVarint(constants.TEXT_POST, message, offset)
+    // 5. write channelSize
+    offset += writeVarint(channel.length, message, offset)
+    // 6. write the channel
+    offset += b4a.from(channel).copy(message, offset)
+    // 7. write timestamp
+    offset += writeVarint(timestamp, message, offset)
+    // 8. write textSize
+    offset += writeVarint(text.length, message, offset)
+    // 9. write the text
+    offset += b4a.from(text).copy(message, offset)
+    // now, time to make a signature
+    const signaturePayload = message.slice(constants.PUBLICKEY_SIZE, offset)
+    const payload = message.slice(constants.PUBLICKEY_SIZE + constants.SIGNATURE_SIZE, offset)
+    crypto.sign(signaturePayload, payload, secretKey)
+    const signatureCorrect = crypto.verify(signaturePayload, payload, publicKey)
+    if (!signatureCorrect) { throw new Error("could not verify created signature using keypair publicKey + secretKey") }
+
+    return message.slice(0, offset)
+  }
+
+  static toJSON(buf) {
+  }
+}
+
 
 // peek returns the message type of a cablegram
 function peek (buf) {
@@ -526,5 +568,8 @@ module.exports = {
   TIME_RANGE_REQUEST, 
   CHANNEL_STATE_REQUEST, 
   CHANNEL_LIST_REQUEST, 
+
+  TEXT_POST,
+
   peek 
 }

@@ -1,4 +1,5 @@
 const cable = require("./index.js")
+const constants = require("./constants")
 const CANCEL_REQUEST = cable.CANCEL_REQUEST
 const HASH_REQUEST = cable.HASH_REQUEST
 const DATA_RESPONSE = cable.DATA_RESPONSE
@@ -6,6 +7,7 @@ const HASH_RESPONSE = cable.HASH_RESPONSE
 const TIME_RANGE_REQUEST = cable.TIME_RANGE_REQUEST
 const CHANNEL_STATE_REQUEST = cable.CHANNEL_STATE_REQUEST
 const CHANNEL_LIST_REQUEST = cable.CHANNEL_LIST_REQUEST
+const TEXT_POST = cable.TEXT_POST
 const crypto = require("./cryptography.js")
 const b4a = require("b4a")
 
@@ -60,7 +62,6 @@ console.log("msg type of time range request", cable.peek(bufRangeReq))
 const objRangeReq = TIME_RANGE_REQUEST.toJSON(bufRangeReq)
 console.log(objRangeReq)
 
-
 const bufStateReq = CHANNEL_STATE_REQUEST.create(crypto.generateReqID(), 3, "dev", 12, 9)
 console.log(bufStateReq)
 console.log("msg type of channel state req", cable.peek(bufStateReq))
@@ -72,3 +73,14 @@ console.log(bufListReq)
 console.log("msg type of channel list req", cable.peek(bufListReq))
 const objListReq = CHANNEL_LIST_REQUEST.toJSON(bufListReq)
 console.log(objListReq)
+
+const keypair = crypto.generateKeypair()
+console.log(keypair)
+const link = crypto.hash(b4a.from("not a message payload at all actually"))
+const bufText = TEXT_POST.create(keypair.publicKey, keypair.secretKey, link, "introduction", 123, "hello dar warld")
+const sigAndPayload = bufText.slice(constants.PUBLICKEY_SIZE)
+const payload = bufText.slice(constants.PUBLICKEY_SIZE + constants.SIGNATURE_SIZE)
+const messageSignatureCorrect = crypto.verify(sigAndPayload, payload, keypair.publicKey)
+console.log(bufText)
+let correct = (messageSignatureCorrect ? "correct" : "incorrect")
+console.log("and the message is....", correct, `(${messageSignatureCorrect})`)
