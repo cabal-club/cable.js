@@ -1,5 +1,5 @@
-// all uses of "buffer" refer to the structure represented by b4a: i.e. a nodejs buffer if running nodejs, or a
-// Uint8Array in the web
+// all uses of "buffer" refer to the structure represented by b4a: 
+// i.e. a nodejs buffer if running nodejs, or a Uint8Array in the web
 const b4a = require("b4a")
 const constants = require("./constants.js")
 const varint = require("varint")
@@ -52,25 +52,24 @@ class HASH_RESPONSE {
   // { msgLen, msgType, reqID, hashes }
   static toJSON(buf) {
     let offset = 0
-
+    // 1. get msgLen
     const msgLen = decodeVarintSlice(buf, 0)
     offset += varint.decode.bytes
     if (!isBufferSize(buf.slice(offset), msgLen)) { throw bufferExpected("remaining buf", msgLen) }
-
+    // 2. get msgType
     const msgType = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-
     if (msgType !== constants.HASH_RESPONSE) {
       throw new Error("decoded msgType is not of expected type (constants.HASH_RESPONSE)")
     }
-
+    // 3. get reqID
     const reqID = buf.slice(offset, offset+constants.REQID_SIZE)
     if (!isBufferSize(reqID, constants.REQID_SIZE)) { throw bufferExpected("reqID", constants.REQID_SIZE) }
     offset += constants.REQID_SIZE
-
+    // 4. get hashCount
     const hashCount = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-
+    // 5. use hashCount to slice out the hashes
     let hashes = []
     for (let i = 0; i < hashCount; i++) {
       hashes.push(buf.slice(offset, offset + constants.HASH_SIZE))
@@ -123,28 +122,27 @@ class HASH_REQUEST {
   // { msgLen, msgType, reqID, ttl, hashes }
   static toJSON(buf) {
     let offset = 0
-
+    // 1. get msgLen
     const msgLen = decodeVarintSlice(buf, 0)
     offset += varint.decode.bytes
     if (!isBufferSize(buf.slice(offset), msgLen)) { throw bufferExpected("remaining buf", msgLen) }
-
+    // 2. get msgType
     const msgType = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-
     if (msgType !== constants.HASH_REQUEST) {
       throw new Error("decoded msgType is not of expected type (constants.HASH_REQUEST)")
     }
-
+    // 3. get reqID
     const reqID = buf.slice(offset, offset+constants.REQID_SIZE)
     if (!isBufferSize(reqID, constants.REQID_SIZE)) { throw bufferExpected("reqID", constants.REQID_SIZE) }
     offset += constants.REQID_SIZE
-
+    // 4. get ttl
     const ttl = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-
+    // 5. get hashCount
     const hashCount = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-
+    // 6. use hashCount to slice out the hashes
     let hashes = []
     for (let i = 0; i < hashCount; i++) {
       hashes.push(buf.slice(offset, offset + constants.HASH_SIZE))
@@ -178,18 +176,17 @@ class CANCEL_REQUEST {
   // { msgLen, msgType, reqID }
   static toJSON(buf) {
     let offset = 0
-
+    // 1. get mshLen
     const msgLen = decodeVarintSlice(buf, 0)
     offset += varint.decode.bytes
     if (!isBufferSize(buf.slice(offset), msgLen)) { throw bufferExpected("remaining buf", msgLen) }
-
+    // 2. get msgType
     const msgType = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-
     if (msgType !== constants.CANCEL_REQUEST) {
       throw new Error("decoded msgType is not of expected type (constants.CANCEL_REQUEST)")
     }
-
+    // 3. get reqID
     const reqID = buf.slice(offset, offset+constants.REQID_SIZE)
     offset += constants.REQID_SIZE
 
@@ -234,36 +231,35 @@ class TIME_RANGE_REQUEST {
   // { msgLen, msgType, reqID, ttl, channel, timeStart, timeEnd, limit }
   static toJSON(buf) {
     let offset = 0
-
+    // 1. get msgLen
     const msgLen = decodeVarintSlice(buf, 0)
     offset += varint.decode.bytes
     if (!isBufferSize(buf.slice(offset), msgLen)) { throw bufferExpected("remaining buf", msgLen) }
-
+    // 2. get msgType
     const msgType = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-
     if (msgType !== constants.TIME_RANGE_REQUEST) {
       return new Error(`"decoded msgType (${msgType}) is not of expected type (constants.TIME_RANGE_REQUEST)`)
     }
-
+    // 3. get reqID
     const reqID = buf.slice(offset, offset+constants.REQID_SIZE)
     offset += constants.REQID_SIZE
-
+    // 4. get ttl
     const ttl = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-
+    // 5. get channelSize
     const channelSize = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-
+    // 6. use channelSize to slice out the channel
     const channel = buf.slice(offset, offset + channelSize).toString()
     offset += channelSize
-
+    // 7. get timeStart
     const timeStart = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-
+    // 8. get timeEnd
     const timeEnd = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-
+    // 9. get limit
     const limit = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
 
@@ -304,33 +300,33 @@ class CHANNEL_STATE_REQUEST {
   // { msgLen, msgType, reqID, ttl, channel, limit, updates }
   static toJSON(buf) {
     let offset = 0
-
+    // 1. get msgLen
     const msgLen = decodeVarintSlice(buf, 0)
     offset += varint.decode.bytes
     if (!isBufferSize(buf.slice(offset), msgLen)) { throw bufferExpected("remaining buf", msgLen) }
-
+    // 2. get msgType
     const msgType = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-
     if (msgType !== constants.CHANNEL_STATE_REQUEST) {
       return new Error(`"decoded msgType (${msgType}) is not of expected type (constants.CHANNEL_STATE_REQUEST)`)
     }
-
+    // 3. get reqID
     const reqID = buf.slice(offset, offset+constants.REQID_SIZE)
     offset += constants.REQID_SIZE
-
+    if (!isBufferSize(reqID, constants.REQID_SIZE)) { throw bufferExpected("reqID", constants.REQID_SIZE) }
+    // 4. get ttl
     const ttl = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-
+    // 5. get channelSize
     const channelSize = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-
+    // 6. use channelSize to slice out channel
     const channel = buf.slice(offset, offset + channelSize).toString()
     offset += channelSize
-
+    // 7. get limit
     const limit = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-
+    // 8. get updates
     const updates = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
 
@@ -363,24 +359,24 @@ class CHANNEL_LIST_REQUEST {
   // { msgLen, msgType, reqID, ttl, limit }
   static toJSON(buf) {
     let offset = 0
-
+    // 1. get msgLen
     const msgLen = decodeVarintSlice(buf, 0)
     offset += varint.decode.bytes
     if (!isBufferSize(buf.slice(offset), msgLen)) { throw bufferExpected("remaining buf", msgLen) }
-
+    // 2. get msgType
     const msgType = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-
     if (msgType !== constants.CHANNEL_LIST_REQUEST) {
       return new Error(`"decoded msgType (${msgType}) is not of expected type (constants.CHANNEL_LIST_REQUEST)`)
     }
-
+    // 3. get reqID
     const reqID = buf.slice(offset, offset+constants.REQID_SIZE)
     offset += constants.REQID_SIZE
-
+    if (!isBufferSize(reqID, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
+    // 4. get ttl
     const ttl = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-
+    // 5. get limit
     const limit = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
 
@@ -469,5 +465,12 @@ function writeVarint (n, buf, offset) {
   return varint.encode.bytes
 }
 
-module.exports = { CANCEL_REQUEST, HASH_REQUEST, HASH_RESPONSE, TIME_RANGE_REQUEST, 
-  CHANNEL_STATE_REQUEST, CHANNEL_LIST_REQUEST, peek }
+module.exports = { 
+  HASH_RESPONSE, 
+  HASH_REQUEST, 
+  CANCEL_REQUEST, 
+  TIME_RANGE_REQUEST, 
+  CHANNEL_STATE_REQUEST, 
+  CHANNEL_LIST_REQUEST, 
+  peek 
+}

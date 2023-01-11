@@ -17,27 +17,29 @@ function generateFakeHashes (amount) {
 }
 
 
-const b = CANCEL_REQUEST.create(crypto.generateReqID())
-console.log("msg type of cancel request", cable.peek(b))
-const obj = CANCEL_REQUEST.toJSON(b)
-console.log(obj)
-
+const moreHashes = generateFakeHashes(3)
 const hashes = generateFakeHashes(3)
+
+const bufHashRes = HASH_RESPONSE.create(crypto.generateReqID(), moreHashes)
+console.log("msg type of hash response", cable.peek(bufHashRes))
+const objHashRes = HASH_RESPONSE.toJSON(bufHashRes)
+console.log(objHashRes)
+
 const bufHashReq = HASH_REQUEST.create(crypto.generateReqID(), 3, hashes)
 console.log("msg type of hash request", cable.peek(bufHashReq))
 const objHashReq = HASH_REQUEST.toJSON(bufHashReq)
 console.log(objHashReq)
+
+const b = CANCEL_REQUEST.create(crypto.generateReqID())
+console.log("msg type of cancel request", cable.peek(b))
+const obj = CANCEL_REQUEST.toJSON(b)
+console.log(obj)
 
 const bufRangeReq = TIME_RANGE_REQUEST.create(crypto.generateReqID(), 3, "default", 0, 100, 20)
 console.log("msg type of time range request", cable.peek(bufRangeReq))
 const objRangeReq = TIME_RANGE_REQUEST.toJSON(bufRangeReq)
 console.log(objRangeReq)
 
-const moreHashes = generateFakeHashes(3)
-const bufHashRes = HASH_RESPONSE.create(crypto.generateReqID(), moreHashes)
-console.log("msg type of hash response", cable.peek(bufHashRes))
-const objHashRes = HASH_RESPONSE.toJSON(bufHashRes)
-console.log(objHashRes)
 
 const bufStateReq = CHANNEL_STATE_REQUEST.create(crypto.generateReqID(), 3, "dev", 12, 9)
 console.log(bufStateReq)
