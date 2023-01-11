@@ -81,15 +81,68 @@ class HASH_RESPONSE {
   }
 }
 
-// class DATA_RESPONSE {
-//   static create(reqid, datalist) {
-//     console.log("reqid", reqid)
-//     console.log("data", datalist)
-//   }
-//   static toJSON(buf) {
-//     console.log("mah buf which i am to JSON forth")
-//   }
-// }
+class DATA_RESPONSE {
+  static create(reqid, arrdata) {
+    if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
+    // TODO (2023-01-11): sanitize arr of data
+    // allocate default-sized buffer
+    let frame = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
+    let offset = 0
+    // 1. write message type
+    offset += writeVarint(constants.DATA_RESPONSE, frame, offset)
+    // 2. write reqid
+    offset += reqid.copy(frame, offset)
+    // 3. exhaust array of data
+    for (let i = 0; i < arrdata.length; i++) {
+      // 3.1 first write dataLen 
+      console.log(arrdata[i], arrdata[i].length)
+      offset += writeVarint(arrdata[i].length, frame, offset)
+      // 3.2 then write the data
+      offset += arrdata[i].copy(frame, offset)
+    }
+    // resize buffer, since we have written everything except msglen
+    frame = frame.slice(0, offset)
+    return prependMsgLen(frame)
+  }
+  // takes a cablegram buffer and returns the json object: 
+  // { msgLen, msgType, reqid, data}
+  static toJSON(buf) {
+    let offset = 0
+    let msgLenBytes
+    // 1. get msgLen
+    const msgLen = decodeVarintSlice(buf, 0)
+    offset += varint.decode.bytes
+    msgLenBytes = varint.decode.bytes
+    if (!isBufferSize(buf.slice(offset), msgLen)) { throw bufferExpected("remaining buf", msgLen) }
+    // 2. get msgType
+    const msgType = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    if (msgType !== constants.DATA_RESPONSE) {
+      throw new Error("decoded msgType is not of expected type (constants.DATA_RESPONSE)")
+    }
+    // 3. get reqid
+    const reqid = buf.slice(offset, offset+constants.REQID_SIZE)
+    if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
+    offset += constants.REQID_SIZE
+    // 4. remaining buffer consists of [dataLen, data] segments
+    // read until it runs out
+    let data = []
+    // msgLen tells us the number of bytes in the remaining cablegram i.e. *excluding* msgLen, 
+    // so we need to account for that by adding msgLenBytes
+    let remaining = msgLen - offset + msgLenBytes
+    while (remaining > 0) {
+      const dataLen = decodeVarintSlice(buf, offset)
+      offset += varint.decode.bytes
+      // 5. use dataLen to slice out the hashes
+      data.push(buf.slice(offset, offset + dataLen))
+      offset += dataLen
+      
+      remaining = msgLen - offset + msgLenBytes
+    }
+
+    return { msgLen, msgType, reqid, data }
+  }
+}
 
 class HASH_REQUEST {
   // constructs a cablegram buffer using the incoming arguments
@@ -467,6 +520,7 @@ function writeVarint (n, buf, offset) {
 
 module.exports = { 
   HASH_RESPONSE, 
+  DATA_RESPONSE, 
   HASH_REQUEST, 
   CANCEL_REQUEST, 
   TIME_RANGE_REQUEST, 

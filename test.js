@@ -1,6 +1,7 @@
 const cable = require("./index.js")
 const CANCEL_REQUEST = cable.CANCEL_REQUEST
 const HASH_REQUEST = cable.HASH_REQUEST
+const DATA_RESPONSE = cable.DATA_RESPONSE
 const HASH_RESPONSE = cable.HASH_RESPONSE
 const TIME_RANGE_REQUEST = cable.TIME_RANGE_REQUEST
 const CHANNEL_STATE_REQUEST = cable.CHANNEL_STATE_REQUEST
@@ -16,14 +17,33 @@ function generateFakeHashes (amount) {
   return hashes
 }
 
+function generateFakeData (amount) {
+  let data = []
+  for (let i = 0; i < amount; i++) {
+    data.push(b4a.from("abc".repeat(Math.floor(Math.random()*50))))
+  }
+  return data
+}
 
-const moreHashes = generateFakeHashes(3)
 const hashes = generateFakeHashes(3)
+const moreHashes = generateFakeHashes(3)
+const fakeData = generateFakeData(5)
 
 const bufHashRes = HASH_RESPONSE.create(crypto.generateReqID(), moreHashes)
 console.log("msg type of hash response", cable.peek(bufHashRes))
 const objHashRes = HASH_RESPONSE.toJSON(bufHashRes)
 console.log(objHashRes)
+
+const bufDataRes = DATA_RESPONSE.create(crypto.generateReqID(), fakeData)
+console.log("msg type of data response", cable.peek(bufDataRes))
+console.log(bufDataRes)
+const objDataRes = DATA_RESPONSE.toJSON(bufDataRes)
+console.log(objDataRes)
+// for (let i = 0; i < fakeData.length; i++) {
+//   console.log(fakeData[i].toString() === objDataRes.data[i].toString())
+//   console.log("a", fakeData[i].toString())
+//   console.log("b", objDataRes.data[i].toString())
+// }
 
 const bufHashReq = HASH_REQUEST.create(crypto.generateReqID(), 3, hashes)
 console.log("msg type of hash request", cable.peek(bufHashReq))
