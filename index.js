@@ -475,12 +475,55 @@ class TEXT_POST {
     const payload = message.slice(constants.PUBLICKEY_SIZE + constants.SIGNATURE_SIZE, offset)
     crypto.sign(signaturePayload, payload, secretKey)
     const signatureCorrect = crypto.verify(signaturePayload, payload, publicKey)
-    if (!signatureCorrect) { throw new Error("could not verify created signature using keypair publicKey + secretKey") }
+    if (!signatureCorrect) { 
+      throw new Error("could not verify created signature using keypair publicKey + secretKey") 
+    }
 
     return message.slice(0, offset)
   }
 
   static toJSON(buf) {
+    // { publicKey, signature, link, postType, channel, timestamp, text }
+    let offset = 0
+    // 1. get publicKey
+    const publicKey = buf.slice(0, constants.PUBLICKEY_SIZE)
+    offset += constants.PUBLICKEY_SIZE
+    // 2. get signature
+    const signature = buf.slice(offset, offset + constants.SIGNATURE_SIZE)
+    offset += constants.SIGNATURE_SIZE
+    // verify signature is correct
+    const signaturePayload = buf.slice(constants.PUBLICKEY_SIZE)
+    const payload = buf.slice(constants.PUBLICKEY_SIZE + constants.SIGNATURE_SIZE)
+    const signatureCorrect = crypto.verify(signaturePayload, payload, publicKey)
+    if (!signatureCorrect) { 
+      throw new Error("could not verify created signature using keypair publicKey + secretKey") 
+    }
+    // 3. get link
+    const link = buf.slice(offset, offset + constants.HASH_SIZE)
+    offset += constants.HASH_SIZE
+    // 4. get postType
+    const postType = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    if (postType !== constants.TEXT_POST) {
+      return new Error(`"decoded postType (${postType}) is not of expected type (constants.TEXT_POST)`)
+    }
+    // 5. get channelSize
+    const channelSize = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 6. use channelSize to get channel
+    const channel = buf.slice(offset, offset + channelSize).toString()
+    offset += channelSize
+    // 7. get timestamp
+    const timestamp = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 8. get textSize
+    const textSize = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 9. use textSize to get text
+    const text = buf.slice(offset, offset + textSize).toString()
+    offset += textSize
+
+    return { publicKey, signature, link, postType, channel, timestamp, text }
   }
 }
 

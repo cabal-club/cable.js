@@ -84,3 +84,5 @@ const messageSignatureCorrect = crypto.verify(sigAndPayload, payload, keypair.pu
 console.log(bufText)
 let correct = (messageSignatureCorrect ? "correct" : "incorrect")
 console.log("and the message is....", correct, `(${messageSignatureCorrect})`)
+const objText = TEXT_POST.toJSON(bufText)
+console.log(objText)
