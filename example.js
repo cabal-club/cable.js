@@ -127,7 +127,7 @@ console.log("and the message is....", correct, `(${messageSignatureCorrectJoin})
 const objJoin = JOIN_POST.toJSON(bufJoin)
 console.log(objJoin)
 
-// 4: post/leave
+// 5: post/leave
 const bufLeave = LEAVE_POST.create(keypair.publicKey, keypair.secretKey, link, "introduction", 124)
 const messageSignatureCorrectLeave = crypto.verify(bufLeave, keypair.publicKey)
 console.log(bufLeave)
