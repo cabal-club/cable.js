@@ -9,22 +9,15 @@ const crypto = require("./cryptography.js")
 // * in the create methods: improve their resiliency by detecting when the pre-allocated buffer will not be large enough, and reallocatIe a larger buffer
 // * reserve 4 bytes between `req_id` and `ttl`
 //  in requests, and also in responses after `req_id` for circuits
-// * in create methods: guard against invalid values for arguments 
 
-// TODO (2023-01-11): validity checking of arguments 
-// * reqid is a buffer of length REQID_SIZE
-// * numbers: ttl, limit, updates, timeStart, timeEnd
-// * hashes is a list of HASH_SIZE buffers
-// * strings: channel, topic, text
-//
-// TODO (2023-01-12): also check amount of arguments, if incorrect respond with an error 
-// that says sth like "expected <amount> arguments: <function signature>"
+// TODO (2023-01-12): check amount of arguments, if incorrect respond with an error 
+// like "expected <amount> arguments: <function signature>"
 
 // TODO (2023-01-11): regarding byte size of a string
-// is it enough to simply do str.length to get the correct byte size?
+// is it enough to simply do str.length to get the correct byte size? any gotchas?
 
 // TODO (2023-01-11): 
-// would like to abstract away offset += varint.decode.bytes in case we swap library / opt for self-authored standard
+// would like to abstract away `offset += varint.decode.bytes` in case we swap library / opt for self-authored standard
 
 const HASHES_EXPECTED = new Error("expected hashes to contain an array of hash-sized buffers")
 function bufferExpected (param, size) {
@@ -94,7 +87,7 @@ class HASH_RESPONSE {
 class DATA_RESPONSE {
   static create(reqid, arrdata) {
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
-    // TODO (2023-01-11): sanitize arr of data
+    // TODO (2023-01-11): sanitize arr of data?
     // allocate default-sized buffer
     let frame = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
     let offset = 0
@@ -104,10 +97,9 @@ class DATA_RESPONSE {
     offset += reqid.copy(frame, offset)
     // 3. exhaust array of data
     for (let i = 0; i < arrdata.length; i++) {
-      // 3.1 first write dataLen 
-      console.log(arrdata[i], arrdata[i].length)
+      // 3.1 write dataLen 
       offset += writeVarint(arrdata[i].length, frame, offset)
-      // 3.2 then write the data
+      // 3.2 then write the data itself
       offset += arrdata[i].copy(frame, offset)
     }
     // resize buffer, since we have written everything except msglen
