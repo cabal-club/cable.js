@@ -16,6 +16,9 @@ const crypto = require("./cryptography.js")
 // * numbers: ttl, limit, updates, timeStart, timeEnd
 // * hashes is a list of HASH_SIZE buffers
 // * strings: channel, topic, text
+//
+// TODO (2023-01-12): also check amount of arguments, if incorrect respond with an error 
+// that says sth like "expected <amount> arguments: <function signature>"
 
 // TODO (2023-01-11): regarding byte size of a string
 // is it enough to simply do str.length to get the correct byte size?
@@ -600,10 +603,91 @@ class DELETE_POST {
 }
   
 // intentionally left blank; will loop back to
-// class INFO_POST {
-//   static create(publicKey, link, timestamp) {}
-//   static toJSON(buf) {}
-// }
+class INFO_POST {
+  static create(publicKey, secretKey, link, timestamp, key, value) {
+    if (!isBufferSize(publicKey, constants.PUBLICKEY_SIZE)) { throw bufferExpected("publicKey", constants.PUBLICKEY_SIZE) }
+    if (!isBufferSize(secretKey, constants.SECRETKEY_SIZE)) { throw bufferExpected("secretKey", constants.SECRETKEY_SIZE) }
+    if (!isBufferSize(link, constants.HASH_SIZE)) { throw bufferExpected("link", constants.HASH_SIZE) }
+    if (!isInteger(timestamp)) { throw integerExpected("timestamp") }
+    if (!isString(key)) { throw stringExpected("key") }
+    if (!isString(value)) { throw stringExpected("value") }
+    
+    let offset = 0
+    const message = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
+    // 1. write public key
+    offset += publicKey.copy(message, 0)
+    // 2. make space for signature, which is done last of all.
+    offset += constants.SIGNATURE_SIZE
+    // 3. write link, which is represents a hash i.e. a buffer
+    offset += link.copy(message, offset)
+    // 4. write postType
+    offset += writeVarint(constants.INFO_POST, message, offset)
+    // 7. write timestamp
+    offset += writeVarint(timestamp, message, offset)
+    // 5. write keySize
+    offset += writeVarint(key.length, message, offset)
+    // 6. write the key
+    offset += b4a.from(key).copy(message, offset)
+    // 8. write valueSize
+    offset += writeVarint(value.length, message, offset)
+    // 9. write the value
+    offset += b4a.from(value).copy(message, offset)
+    // now, time to make a signature
+    const signaturePayload = message.slice(constants.PUBLICKEY_SIZE, offset)
+    const payload = message.slice(constants.PUBLICKEY_SIZE + constants.SIGNATURE_SIZE, offset)
+    crypto.sign(signaturePayload, payload, secretKey)
+    const signatureCorrect = crypto.verify(signaturePayload, payload, publicKey)
+    if (!signatureCorrect) { 
+      throw new Error("could not verify created signature using keypair publicKey + secretKey") 
+    }
+
+    return message.slice(0, offset)
+  }
+
+  static toJSON(buf) {
+    // { publicKey, signature, link, postType, timestamp, key, value }
+    let offset = 0
+    // 1. get publicKey
+    const publicKey = buf.slice(0, constants.PUBLICKEY_SIZE)
+    offset += constants.PUBLICKEY_SIZE
+    // 2. get signature
+    const signature = buf.slice(offset, offset + constants.SIGNATURE_SIZE)
+    offset += constants.SIGNATURE_SIZE
+    // verify signature is correct
+    const signaturePayload = buf.slice(constants.PUBLICKEY_SIZE)
+    const payload = buf.slice(constants.PUBLICKEY_SIZE + constants.SIGNATURE_SIZE)
+    const signatureCorrect = crypto.verify(signaturePayload, payload, publicKey)
+    if (!signatureCorrect) { 
+      throw new Error("could not verify created signature using keypair publicKey + secretKey") 
+    }
+    // 3. get link
+    const link = buf.slice(offset, offset + constants.HASH_SIZE)
+    offset += constants.HASH_SIZE
+    // 4. get postType
+    const postType = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    if (postType !== constants.INFO_POST) {
+      return new Error(`"decoded postType (${postType}) is not of expected type (constants.INFO_POST)`)
+    }
+    // 5. get timestamp
+    const timestamp = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 6. get keySize
+    const keySize = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 7. use keySize to get key
+    const key = buf.slice(offset, offset + keySize).toString()
+    offset += keySize
+    // 8. get valueSize
+    const valueSize = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 9. use valueSize to get value
+    const value = buf.slice(offset, offset + valueSize).toString()
+    offset += valueSize
+
+    return { publicKey, signature, link, postType, timestamp, key, value }
+  }
+}
 
 
 class TOPIC_POST {
@@ -929,7 +1013,7 @@ module.exports = {
 
   TEXT_POST,
   DELETE_POST,
-  // INFO_POST,
+  INFO_POST,
   TOPIC_POST,
   JOIN_POST,
   LEAVE_POST,

@@ -9,6 +9,7 @@ const CHANNEL_STATE_REQUEST = cable.CHANNEL_STATE_REQUEST
 const CHANNEL_LIST_REQUEST = cable.CHANNEL_LIST_REQUEST
 const TEXT_POST = cable.TEXT_POST
 const DELETE_POST = cable.DELETE_POST
+const INFO_POST = cable.INFO_POST
 const TOPIC_POST = cable.TOPIC_POST
 const JOIN_POST = cable.JOIN_POST
 const LEAVE_POST = cable.LEAVE_POST
@@ -102,6 +103,16 @@ correct = (messageSignatureCorrectDelete ? "correct" : "incorrect")
 console.log("and the message is....", correct, `(${messageSignatureCorrectDelete})`)
 const objDelete = DELETE_POST.toJSON(bufDelete)
 console.log(objDelete)
+
+const bufInfo = INFO_POST.create(keypair.publicKey, keypair.secretKey, link, 9321, "nick", "cabler")
+const sigAndPayloadInfo = bufInfo.slice(constants.PUBLICKEY_SIZE)
+const payloadInfo = bufInfo.slice(constants.PUBLICKEY_SIZE + constants.SIGNATURE_SIZE)
+const messageSignatureCorrectInfo = crypto.verify(sigAndPayloadInfo, payloadInfo, keypair.publicKey)
+console.log(bufInfo)
+correct = (messageSignatureCorrectInfo ? "correct" : "incorrect")
+console.log("and the message is....", correct, `(${messageSignatureCorrect})`)
+const objInfo = INFO_POST.toJSON(bufInfo)
+console.log(objInfo)
 
 const bufTopic = TOPIC_POST.create(keypair.publicKey, keypair.secretKey, link, "introduction", 123, "introduce yourself to everyone else in this channel")
 const sigAndPayloadTopic = bufTopic.slice(constants.PUBLICKEY_SIZE)
