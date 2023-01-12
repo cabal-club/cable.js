@@ -20,12 +20,16 @@ function generateKeypair() {
   return kp
 }
 
+// buf is a buffer that is exactly as large as the message (i.e. no overshooting placegholder bytes after message
+// payload)
 function sign (buf, secretKey) {
   const sigAndPayload = buf.subarray(sodium.crypto_sign_PUBLICKEYBYTES)
   const payload = buf.subarray(sodium.crypto_sign_PUBLICKEYBYTES + sodium.crypto_sign_BYTES)
   sodium.crypto_sign(sigAndPayload, payload, secretKey)
 }
 
+// buf is a buffer that is exactly as large as the message (i.e. no overshooting placegholder bytes after message
+// payload)
 function verify (buf, publicKey) {
   const sigAndPayload = buf.subarray(sodium.crypto_sign_PUBLICKEYBYTES)
   const payload = buf.subarray(sodium.crypto_sign_PUBLICKEYBYTES + sodium.crypto_sign_BYTES)
