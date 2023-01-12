@@ -527,6 +527,92 @@ class TEXT_POST {
   }
 }
 
+class DELETE_POST {
+  static create(publicKey, secretKey, link, timestamp, hash) {
+    if (!isBufferSize(publicKey, constants.PUBLICKEY_SIZE)) { throw bufferExpected("publicKey", constants.PUBLICKEY_SIZE) }
+    if (!isBufferSize(secretKey, constants.SECRETKEY_SIZE)) { throw bufferExpected("secretKey", constants.SECRETKEY_SIZE) }
+    if (!isBufferSize(link, constants.HASH_SIZE)) { throw bufferExpected("link", constants.HASH_SIZE) }
+    if (!isInteger(timestamp)) { throw integerExpected("timestamp") }
+    if (!isBufferSize(hash, constants.HASH_SIZE)) { throw bufferExpected("hash", constants.HASH_SIZE) }
+    
+    let offset = 0
+    const message = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
+    // 1. write public key
+    offset += publicKey.copy(message, 0)
+    // 2. make space for signature, which is done last of all.
+    offset += constants.SIGNATURE_SIZE
+    // 3. write link, which is represents a hash i.e. a buffer
+    offset += link.copy(message, offset)
+    // 4. write postType
+    offset += writeVarint(constants.DELETE_POST, message, offset)
+    // 5. write timestamp
+    offset += writeVarint(timestamp, message, offset)
+    // 6. write hash, which represents the hash of the post we are requesting peers to delete
+    offset += hash.copy(message, offset)
+    // now, time to make a signature
+    const signaturePayload = message.slice(constants.PUBLICKEY_SIZE, offset)
+    const payload = message.slice(constants.PUBLICKEY_SIZE + constants.SIGNATURE_SIZE, offset)
+    crypto.sign(signaturePayload, payload, secretKey)
+    const signatureCorrect = crypto.verify(signaturePayload, payload, publicKey)
+    if (!signatureCorrect) { 
+      throw new Error("could not verify created signature using keypair publicKey + secretKey") 
+    }
+
+    return message.slice(0, offset)
+  }
+  static toJSON(buf) {
+    // { publicKey, signature, link, postType, timestamp, hash }
+    let offset = 0
+    // 1. get publicKey
+    const publicKey = buf.slice(0, constants.PUBLICKEY_SIZE)
+    offset += constants.PUBLICKEY_SIZE
+    // 2. get signature
+    const signature = buf.slice(offset, offset + constants.SIGNATURE_SIZE)
+    offset += constants.SIGNATURE_SIZE
+    // verify signature is correct
+    const signaturePayload = buf.slice(constants.PUBLICKEY_SIZE)
+    const payload = buf.slice(constants.PUBLICKEY_SIZE + constants.SIGNATURE_SIZE)
+    const signatureCorrect = crypto.verify(signaturePayload, payload, publicKey)
+    if (!signatureCorrect) { 
+      throw new Error("could not verify created signature using keypair publicKey + secretKey") 
+    }
+    // 3. get link
+    const link = buf.slice(offset, offset + constants.HASH_SIZE)
+    offset += constants.HASH_SIZE
+    // 4. get postType
+    const postType = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    if (postType !== constants.DELETE_POST) {
+      return new Error(`"decoded postType (${postType}) is not of expected type (constants.DELETE_POST)`)
+    }
+    // 5. get timestamp
+    const timestamp = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 6. get hash
+    const hash = buf.slice(offset, offset + constants.HASH_SIZE)
+    offset += constants.HASH_SIZE
+
+    return { publicKey, signature, link, postType, timestamp, hash }
+  }
+}
+  
+// class DELETE_POST {
+//   static create(publicKey, link, timestamp) {}
+//   static toJSON(buf) {}
+// }
+// class DELETE_POST {
+//   static create(publicKey, link, timestamp) {}
+//   static toJSON(buf) {}
+// }
+// class DELETE_POST {
+//   static create(publicKey, link, timestamp) {}
+//   static toJSON(buf) {}
+// }
+// class DELETE_POST {
+//   static create(publicKey, link, timestamp) {}
+//   static toJSON(buf) {}
+// }
+
 
 // peek returns the message type of a cablegram
 function peek (buf) {
@@ -613,6 +699,7 @@ module.exports = {
   CHANNEL_LIST_REQUEST, 
 
   TEXT_POST,
+  DELETE_POST,
 
   peek 
 }

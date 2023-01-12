@@ -8,6 +8,7 @@ const TIME_RANGE_REQUEST = cable.TIME_RANGE_REQUEST
 const CHANNEL_STATE_REQUEST = cable.CHANNEL_STATE_REQUEST
 const CHANNEL_LIST_REQUEST = cable.CHANNEL_LIST_REQUEST
 const TEXT_POST = cable.TEXT_POST
+const DELETE_POST = cable.DELETE_POST
 const crypto = require("./cryptography.js")
 const b4a = require("b4a")
 
@@ -74,8 +75,9 @@ console.log("msg type of channel list req", cable.peek(bufListReq))
 const objListReq = CHANNEL_LIST_REQUEST.toJSON(bufListReq)
 console.log(objListReq)
 
+/* giving post/* post types a spin */
 const keypair = crypto.generateKeypair()
-console.log(keypair)
+
 const link = crypto.hash(b4a.from("not a message payload at all actually"))
 const bufText = TEXT_POST.create(keypair.publicKey, keypair.secretKey, link, "introduction", 123, "hello dar warld")
 const sigAndPayload = bufText.slice(constants.PUBLICKEY_SIZE)
@@ -86,3 +88,14 @@ let correct = (messageSignatureCorrect ? "correct" : "incorrect")
 console.log("and the message is....", correct, `(${messageSignatureCorrect})`)
 const objText = TEXT_POST.toJSON(bufText)
 console.log(objText)
+
+const deleteHash = crypto.hash(bufText)
+const bufDelete = DELETE_POST.create(keypair.publicKey, keypair.secretKey, link, 321, deleteHash)
+const sigAndPayloadDelete = bufDelete.slice(constants.PUBLICKEY_SIZE)
+const payloadDelete = bufDelete.slice(constants.PUBLICKEY_SIZE + constants.SIGNATURE_SIZE)
+const messageSignatureCorrectDelete = crypto.verify(sigAndPayloadDelete, payloadDelete, keypair.publicKey)
+console.log(bufDelete)
+correct = (messageSignatureCorrectDelete ? "correct" : "incorrect")
+console.log("and the message is....", correct, `(${messageSignatureCorrectDelete})`)
+const objDelete = DELETE_POST.toJSON(bufDelete)
+console.log(objDelete)
