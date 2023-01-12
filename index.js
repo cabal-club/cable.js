@@ -457,33 +457,36 @@ class TEXT_POST {
     if (!isString(text)) { throw stringExpected("text") }
     
     let offset = 0
-    const message = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
+    const buf = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
     // 1. write public key
-    offset += publicKey.copy(message, 0)
+    offset += publicKey.copy(buf, 0)
     // 2. make space for signature, which is done last of all.
     offset += constants.SIGNATURE_SIZE
     // 3. write link, which is represents a hash i.e. a buffer
-    offset += link.copy(message, offset)
+    offset += link.copy(buf, offset)
     // 4. write postType
-    offset += writeVarint(constants.TEXT_POST, message, offset)
+    offset += writeVarint(constants.TEXT_POST, buf, offset)
     // 5. write channelSize
-    offset += writeVarint(channel.length, message, offset)
+    offset += writeVarint(channel.length, buf, offset)
     // 6. write the channel
-    offset += b4a.from(channel).copy(message, offset)
+    offset += b4a.from(channel).copy(buf, offset)
     // 7. write timestamp
-    offset += writeVarint(timestamp, message, offset)
+    offset += writeVarint(timestamp, buf, offset)
     // 8. write textSize
-    offset += writeVarint(text.length, message, offset)
+    offset += writeVarint(text.length, buf, offset)
     // 9. write the text
-    offset += b4a.from(text).copy(message, offset)
-    // now, time to make a signature, make sure we pass the correct sized buffer
-    crypto.sign(message.subarray(0, offset), secretKey)
-    const signatureCorrect = crypto.verify(message.subarray(0, offset), publicKey)
+    offset += b4a.from(text).copy(buf, offset)
+
+    // everything has now been written, slice out the final message from the larger buffer
+    const message = buf.subarray(0, offset)
+    // now, time to make a signature
+    crypto.sign(message, secretKey)
+    const signatureCorrect = crypto.verify(message, publicKey)
     if (!signatureCorrect) { 
       throw new Error("could not verify created signature using keypair publicKey + secretKey") 
     }
 
-    return message.subarray(0, offset)
+    return message
   }
 
   static toJSON(buf) {
@@ -538,28 +541,32 @@ class DELETE_POST {
     if (!isBufferSize(hash, constants.HASH_SIZE)) { throw bufferExpected("hash", constants.HASH_SIZE) }
     
     let offset = 0
-    const message = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
+    const buf = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
     // 1. write public key
-    offset += publicKey.copy(message, 0)
+    offset += publicKey.copy(buf, 0)
     // 2. make space for signature, which is done last of all.
     offset += constants.SIGNATURE_SIZE
     // 3. write link, which is represents a hash i.e. a buffer
-    offset += link.copy(message, offset)
+    offset += link.copy(buf, offset)
     // 4. write postType
-    offset += writeVarint(constants.DELETE_POST, message, offset)
+    offset += writeVarint(constants.DELETE_POST, buf, offset)
     // 5. write timestamp
-    offset += writeVarint(timestamp, message, offset)
+    offset += writeVarint(timestamp, buf, offset)
     // 6. write hash, which represents the hash of the post we are requesting peers to delete
-    offset += hash.copy(message, offset)
-    // now, time to sign the message. 
-    crypto.sign(message.subarray(0, offset), secretKey)
-    const signatureCorrect = crypto.verify(message.subarray(0, offset), publicKey)
+    offset += hash.copy(buf, offset)
+    
+    // everything has now been written, slice out the final message from the larger buffer
+    const message = buf.subarray(0, offset)
+    // now, time to make a signature
+    crypto.sign(message, secretKey)
+    const signatureCorrect = crypto.verify(message, publicKey)
     if (!signatureCorrect) { 
       throw new Error("could not verify created signature using keypair publicKey + secretKey") 
     }
 
-    return message.subarray(0, offset)
+    return message
   }
+
   static toJSON(buf) {
     // { publicKey, signature, link, postType, timestamp, hash }
     let offset = 0
@@ -605,33 +612,36 @@ class INFO_POST {
     if (!isString(value)) { throw stringExpected("value") }
     
     let offset = 0
-    const message = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
+    const buf = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
     // 1. write public key
-    offset += publicKey.copy(message, 0)
+    offset += publicKey.copy(buf, 0)
     // 2. make space for signature, which is done last of all.
     offset += constants.SIGNATURE_SIZE
     // 3. write link, which is represents a hash i.e. a buffer
-    offset += link.copy(message, offset)
+    offset += link.copy(buf, offset)
     // 4. write postType
-    offset += writeVarint(constants.INFO_POST, message, offset)
+    offset += writeVarint(constants.INFO_POST, buf, offset)
     // 7. write timestamp
-    offset += writeVarint(timestamp, message, offset)
+    offset += writeVarint(timestamp, buf, offset)
     // 5. write keySize
-    offset += writeVarint(key.length, message, offset)
+    offset += writeVarint(key.length, buf, offset)
     // 6. write the key
-    offset += b4a.from(key).copy(message, offset)
+    offset += b4a.from(key).copy(buf, offset)
     // 8. write valueSize
-    offset += writeVarint(value.length, message, offset)
+    offset += writeVarint(value.length, buf, offset)
     // 9. write the value
-    offset += b4a.from(value).copy(message, offset)
-    // now, time to make a signature, make sure we pass the correct sized buffer
-    crypto.sign(message.subarray(0, offset), secretKey)
-    const signatureCorrect = crypto.verify(message.subarray(0, offset), publicKey)
+    offset += b4a.from(value).copy(buf, offset)
+    
+    // everything has now been written, slice out the final message from the larger buffer
+    const message = buf.subarray(0, offset)
+    // now, time to make a signature
+    crypto.sign(message, secretKey)
+    const signatureCorrect = crypto.verify(message, publicKey)
     if (!signatureCorrect) { 
       throw new Error("could not verify created signature using keypair publicKey + secretKey") 
     }
 
-    return message.subarray(0, offset)
+    return message
   }
 
   static toJSON(buf) {
@@ -688,33 +698,36 @@ class TOPIC_POST {
     if (!isString(topic)) { throw stringExpected("topic") }
     
     let offset = 0
-    const message = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
+    const buf = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
     // 1. write public key
-    offset += publicKey.copy(message, 0)
+    offset += publicKey.copy(buf, 0)
     // 2. make space for signature, which is done last of all.
     offset += constants.SIGNATURE_SIZE
     // 3. write link, which is represents a hash i.e. a buffer
-    offset += link.copy(message, offset)
+    offset += link.copy(buf, offset)
     // 4. write postType
-    offset += writeVarint(constants.TOPIC_POST, message, offset)
+    offset += writeVarint(constants.TOPIC_POST, buf, offset)
     // 5. write channelSize
-    offset += writeVarint(channel.length, message, offset)
+    offset += writeVarint(channel.length, buf, offset)
     // 6. write the channel
-    offset += b4a.from(channel).copy(message, offset)
+    offset += b4a.from(channel).copy(buf, offset)
     // 7. write timestamp
-    offset += writeVarint(timestamp, message, offset)
+    offset += writeVarint(timestamp, buf, offset)
     // 8. write topicSize
-    offset += writeVarint(topic.length, message, offset)
+    offset += writeVarint(topic.length, buf, offset)
     // 9. write the topic
-    offset += b4a.from(topic).copy(message, offset)
-    // now, time to make a signature, make sure we pass the correct sized buffer
-    crypto.sign(message.subarray(0, offset), secretKey)
-    const signatureCorrect = crypto.verify(message.subarray(0, offset), publicKey)
+    offset += b4a.from(topic).copy(buf, offset)
+    
+    // everything has now been written, slice out the final message from the larger buffer
+    const message = buf.subarray(0, offset)
+    // now, time to make a signature
+    crypto.sign(message, secretKey)
+    const signatureCorrect = crypto.verify(message, publicKey)
     if (!signatureCorrect) { 
       throw new Error("could not verify created signature using keypair publicKey + secretKey") 
     }
 
-    return message.subarray(0, offset)
+    return message
   }
 
   static toJSON(buf) {
@@ -769,29 +782,32 @@ class JOIN_POST {
     if (!isInteger(timestamp)) { throw integerExpected("timestamp") }
     
     let offset = 0
-    const message = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
+    const buf = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
     // 1. write public key
-    offset += publicKey.copy(message, 0)
+    offset += publicKey.copy(buf, 0)
     // 2. make space for signature, which is done last of all.
     offset += constants.SIGNATURE_SIZE
     // 3. write link, which is represents a hash i.e. a buffer
-    offset += link.copy(message, offset)
+    offset += link.copy(buf, offset)
     // 4. write postType
-    offset += writeVarint(constants.JOIN_POST, message, offset)
+    offset += writeVarint(constants.JOIN_POST, buf, offset)
     // 5. write channelSize
-    offset += writeVarint(channel.length, message, offset)
+    offset += writeVarint(channel.length, buf, offset)
     // 6. write the channel
-    offset += b4a.from(channel).copy(message, offset)
+    offset += b4a.from(channel).copy(buf, offset)
     // 7. write timestamp
-    offset += writeVarint(timestamp, message, offset)
-    // now, time to make a signature, make sure we pass the correct sized buffer
-    crypto.sign(message.subarray(0, offset), secretKey)
-    const signatureCorrect = crypto.verify(message.subarray(0, offset), publicKey)
+    offset += writeVarint(timestamp, buf, offset)
+    
+    // everything has now been written, slice out the final message from the larger buffer
+    const message = buf.subarray(0, offset)
+    // now, time to make a signature
+    crypto.sign(message, secretKey)
+    const signatureCorrect = crypto.verify(message, publicKey)
     if (!signatureCorrect) { 
       throw new Error("could not verify created signature using keypair publicKey + secretKey") 
     }
 
-    return message.subarray(0, offset)
+    return message
   }
 
   static toJSON(buf) {
@@ -840,29 +856,32 @@ class LEAVE_POST {
     if (!isInteger(timestamp)) { throw integerExpected("timestamp") }
     
     let offset = 0
-    const message = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
+    const buf = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
     // 1. write public key
-    offset += publicKey.copy(message, 0)
+    offset += publicKey.copy(buf, 0)
     // 2. make space for signature, which is done last of all.
     offset += constants.SIGNATURE_SIZE
     // 3. write link, which is represents a hash i.e. a buffer
-    offset += link.copy(message, offset)
+    offset += link.copy(buf, offset)
     // 4. write postType
-    offset += writeVarint(constants.LEAVE_POST, message, offset)
+    offset += writeVarint(constants.LEAVE_POST, buf, offset)
     // 5. write channelSize
-    offset += writeVarint(channel.length, message, offset)
+    offset += writeVarint(channel.length, buf, offset)
     // 6. write the channel
-    offset += b4a.from(channel).copy(message, offset)
+    offset += b4a.from(channel).copy(buf, offset)
     // 7. write timestamp
-    offset += writeVarint(timestamp, message, offset)
-    // now, time to make a signature, make sure we pass the correct sized buffer
-    crypto.sign(message.subarray(0, offset), secretKey)
-    const signatureCorrect = crypto.verify(message.subarray(0, offset), publicKey)
+    offset += writeVarint(timestamp, buf, offset)
+    
+    // everything has now been written, slice out the final message from the larger buffer
+    const message = buf.subarray(0, offset)
+    // now, time to make a signature
+    crypto.sign(message, secretKey)
+    const signatureCorrect = crypto.verify(message, publicKey)
     if (!signatureCorrect) { 
       throw new Error("could not verify created signature using keypair publicKey + secretKey") 
     }
 
-    return message.subarray(0, offset)
+    return message
   }
 
   static toJSON(buf) {
@@ -903,7 +922,7 @@ class LEAVE_POST {
 }
 
 
-// peek returns the message type of a cablegram
+// peek returns the buf type of a cablegram
 function peek (buf) {
   // decode msg len, and discard
   decodeVarintSlice(buf, 0)
