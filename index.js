@@ -477,10 +477,8 @@ class TEXT_POST {
     // 9. write the text
     offset += b4a.from(text).copy(message, offset)
     // now, time to make a signature
-    const signaturePayload = message.slice(constants.PUBLICKEY_SIZE, offset)
-    const payload = message.slice(constants.PUBLICKEY_SIZE + constants.SIGNATURE_SIZE, offset)
-    crypto.sign(signaturePayload, payload, secretKey)
-    const signatureCorrect = crypto.verify(signaturePayload, payload, publicKey)
+    crypto.sign(message.slice(0, offset), secretKey)
+    const signatureCorrect = crypto.verify(message.slice(0, offset), publicKey)
     if (!signatureCorrect) { 
       throw new Error("could not verify created signature using keypair publicKey + secretKey") 
     }
@@ -498,9 +496,7 @@ class TEXT_POST {
     const signature = buf.slice(offset, offset + constants.SIGNATURE_SIZE)
     offset += constants.SIGNATURE_SIZE
     // verify signature is correct
-    const signaturePayload = buf.slice(constants.PUBLICKEY_SIZE)
-    const payload = buf.slice(constants.PUBLICKEY_SIZE + constants.SIGNATURE_SIZE)
-    const signatureCorrect = crypto.verify(signaturePayload, payload, publicKey)
+    const signatureCorrect = crypto.verify(buf, publicKey)
     if (!signatureCorrect) { 
       throw new Error("could not verify created signature using keypair publicKey + secretKey") 
     }
@@ -555,11 +551,9 @@ class DELETE_POST {
     offset += writeVarint(timestamp, message, offset)
     // 6. write hash, which represents the hash of the post we are requesting peers to delete
     offset += hash.copy(message, offset)
-    // now, time to make a signature
-    const signaturePayload = message.slice(constants.PUBLICKEY_SIZE, offset)
-    const payload = message.slice(constants.PUBLICKEY_SIZE + constants.SIGNATURE_SIZE, offset)
-    crypto.sign(signaturePayload, payload, secretKey)
-    const signatureCorrect = crypto.verify(signaturePayload, payload, publicKey)
+    // now, time to sign the message
+    crypto.sign(message.slice(0, offset), secretKey)
+    const signatureCorrect = crypto.verify(message.slice(0, offset), publicKey)
     if (!signatureCorrect) { 
       throw new Error("could not verify created signature using keypair publicKey + secretKey") 
     }
@@ -576,9 +570,7 @@ class DELETE_POST {
     const signature = buf.slice(offset, offset + constants.SIGNATURE_SIZE)
     offset += constants.SIGNATURE_SIZE
     // verify signature is correct
-    const signaturePayload = buf.slice(constants.PUBLICKEY_SIZE)
-    const payload = buf.slice(constants.PUBLICKEY_SIZE + constants.SIGNATURE_SIZE)
-    const signatureCorrect = crypto.verify(signaturePayload, payload, publicKey)
+    const signatureCorrect = crypto.verify(buf, publicKey)
     if (!signatureCorrect) { 
       throw new Error("could not verify created signature using keypair publicKey + secretKey") 
     }
@@ -633,10 +625,8 @@ class INFO_POST {
     // 9. write the value
     offset += b4a.from(value).copy(message, offset)
     // now, time to make a signature
-    const signaturePayload = message.slice(constants.PUBLICKEY_SIZE, offset)
-    const payload = message.slice(constants.PUBLICKEY_SIZE + constants.SIGNATURE_SIZE, offset)
-    crypto.sign(signaturePayload, payload, secretKey)
-    const signatureCorrect = crypto.verify(signaturePayload, payload, publicKey)
+    crypto.sign(message.slice(0, offset), secretKey)
+    const signatureCorrect = crypto.verify(message.slice(0, offset), publicKey)
     if (!signatureCorrect) { 
       throw new Error("could not verify created signature using keypair publicKey + secretKey") 
     }
@@ -654,9 +644,7 @@ class INFO_POST {
     const signature = buf.slice(offset, offset + constants.SIGNATURE_SIZE)
     offset += constants.SIGNATURE_SIZE
     // verify signature is correct
-    const signaturePayload = buf.slice(constants.PUBLICKEY_SIZE)
-    const payload = buf.slice(constants.PUBLICKEY_SIZE + constants.SIGNATURE_SIZE)
-    const signatureCorrect = crypto.verify(signaturePayload, payload, publicKey)
+    const signatureCorrect = crypto.verify(buf, publicKey)
     if (!signatureCorrect) { 
       throw new Error("could not verify created signature using keypair publicKey + secretKey") 
     }
@@ -720,10 +708,8 @@ class TOPIC_POST {
     // 9. write the topic
     offset += b4a.from(topic).copy(message, offset)
     // now, time to make a signature
-    const signaturePayload = message.slice(constants.PUBLICKEY_SIZE, offset)
-    const payload = message.slice(constants.PUBLICKEY_SIZE + constants.SIGNATURE_SIZE, offset)
-    crypto.sign(signaturePayload, payload, secretKey)
-    const signatureCorrect = crypto.verify(signaturePayload, payload, publicKey)
+    crypto.sign(message.slice(0, offset), secretKey)
+    const signatureCorrect = crypto.verify(message.slice(0, offset), publicKey)
     if (!signatureCorrect) { 
       throw new Error("could not verify created signature using keypair publicKey + secretKey") 
     }
@@ -741,9 +727,7 @@ class TOPIC_POST {
     const signature = buf.slice(offset, offset + constants.SIGNATURE_SIZE)
     offset += constants.SIGNATURE_SIZE
     // verify signature is correct
-    const signaturePayload = buf.slice(constants.PUBLICKEY_SIZE)
-    const payload = buf.slice(constants.PUBLICKEY_SIZE + constants.SIGNATURE_SIZE)
-    const signatureCorrect = crypto.verify(signaturePayload, payload, publicKey)
+    const signatureCorrect = crypto.verify(buf, publicKey)
     if (!signatureCorrect) { 
       throw new Error("could not verify created signature using keypair publicKey + secretKey") 
     }
@@ -801,10 +785,8 @@ class JOIN_POST {
     // 7. write timestamp
     offset += writeVarint(timestamp, message, offset)
     // now, time to make a signature
-    const signaturePayload = message.slice(constants.PUBLICKEY_SIZE, offset)
-    const payload = message.slice(constants.PUBLICKEY_SIZE + constants.SIGNATURE_SIZE, offset)
-    crypto.sign(signaturePayload, payload, secretKey)
-    const signatureCorrect = crypto.verify(signaturePayload, payload, publicKey)
+    crypto.sign(message.slice(0, offset), secretKey)
+    const signatureCorrect = crypto.verify(message.slice(0, offset), publicKey)
     if (!signatureCorrect) { 
       throw new Error("could not verify created signature using keypair publicKey + secretKey") 
     }
@@ -822,9 +804,7 @@ class JOIN_POST {
     const signature = buf.slice(offset, offset + constants.SIGNATURE_SIZE)
     offset += constants.SIGNATURE_SIZE
     // verify signature is correct
-    const signaturePayload = buf.slice(constants.PUBLICKEY_SIZE)
-    const payload = buf.slice(constants.PUBLICKEY_SIZE + constants.SIGNATURE_SIZE)
-    const signatureCorrect = crypto.verify(signaturePayload, payload, publicKey)
+    const signatureCorrect = crypto.verify(buf, publicKey)
     if (!signatureCorrect) { 
       throw new Error("could not verify created signature using keypair publicKey + secretKey") 
     }
@@ -876,10 +856,8 @@ class LEAVE_POST {
     // 7. write timestamp
     offset += writeVarint(timestamp, message, offset)
     // now, time to make a signature
-    const signaturePayload = message.slice(constants.PUBLICKEY_SIZE, offset)
-    const payload = message.slice(constants.PUBLICKEY_SIZE + constants.SIGNATURE_SIZE, offset)
-    crypto.sign(signaturePayload, payload, secretKey)
-    const signatureCorrect = crypto.verify(signaturePayload, payload, publicKey)
+    crypto.sign(message.slice(0, offset), secretKey)
+    const signatureCorrect = crypto.verify(message.slice(0, offset), publicKey)
     if (!signatureCorrect) { 
       throw new Error("could not verify created signature using keypair publicKey + secretKey") 
     }
@@ -897,9 +875,7 @@ class LEAVE_POST {
     const signature = buf.slice(offset, offset + constants.SIGNATURE_SIZE)
     offset += constants.SIGNATURE_SIZE
     // verify signature is correct
-    const signaturePayload = buf.slice(constants.PUBLICKEY_SIZE)
-    const payload = buf.slice(constants.PUBLICKEY_SIZE + constants.SIGNATURE_SIZE)
-    const signatureCorrect = crypto.verify(signaturePayload, payload, publicKey)
+    const signatureCorrect = crypto.verify(buf, publicKey)
     if (!signatureCorrect) { 
       throw new Error("could not verify created signature using keypair publicKey + secretKey") 
     }
