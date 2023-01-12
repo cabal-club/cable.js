@@ -20,6 +20,9 @@ const crypto = require("./cryptography.js")
 // TODO (2023-01-11): regarding byte size of a string
 // is it enough to simply do str.length to get the correct byte size?
 
+// TODO (2023-01-11): 
+// would like to abstract away offset += varint.decode.bytes in case we swap library / opt for self-authored standard
+
 const HASHES_EXPECTED = new Error("expected hashes to contain an array of hash-sized buffers")
 function bufferExpected (param, size) {
   return new Error(`expected ${param} to be a buffer of size ${size}`)
@@ -596,22 +599,248 @@ class DELETE_POST {
   }
 }
   
-// class DELETE_POST {
+// intentionally left blank; will loop back to
+// class INFO_POST {
 //   static create(publicKey, link, timestamp) {}
 //   static toJSON(buf) {}
 // }
-// class DELETE_POST {
-//   static create(publicKey, link, timestamp) {}
-//   static toJSON(buf) {}
-// }
-// class DELETE_POST {
-//   static create(publicKey, link, timestamp) {}
-//   static toJSON(buf) {}
-// }
-// class DELETE_POST {
-//   static create(publicKey, link, timestamp) {}
-//   static toJSON(buf) {}
-// }
+
+
+class TOPIC_POST {
+  static create(publicKey, secretKey, link, channel, timestamp, topic) {
+    if (!isBufferSize(publicKey, constants.PUBLICKEY_SIZE)) { throw bufferExpected("publicKey", constants.PUBLICKEY_SIZE) }
+    if (!isBufferSize(secretKey, constants.SECRETKEY_SIZE)) { throw bufferExpected("secretKey", constants.SECRETKEY_SIZE) }
+    if (!isBufferSize(link, constants.HASH_SIZE)) { throw bufferExpected("link", constants.HASH_SIZE) }
+    if (!isString(channel)) { throw stringExpected("channel") }
+    if (!isInteger(timestamp)) { throw integerExpected("timestamp") }
+    if (!isString(topic)) { throw stringExpected("topic") }
+    
+    let offset = 0
+    const message = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
+    // 1. write public key
+    offset += publicKey.copy(message, 0)
+    // 2. make space for signature, which is done last of all.
+    offset += constants.SIGNATURE_SIZE
+    // 3. write link, which is represents a hash i.e. a buffer
+    offset += link.copy(message, offset)
+    // 4. write postType
+    offset += writeVarint(constants.TOPIC_POST, message, offset)
+    // 5. write channelSize
+    offset += writeVarint(channel.length, message, offset)
+    // 6. write the channel
+    offset += b4a.from(channel).copy(message, offset)
+    // 7. write timestamp
+    offset += writeVarint(timestamp, message, offset)
+    // 8. write topicSize
+    offset += writeVarint(topic.length, message, offset)
+    // 9. write the topic
+    offset += b4a.from(topic).copy(message, offset)
+    // now, time to make a signature
+    const signaturePayload = message.slice(constants.PUBLICKEY_SIZE, offset)
+    const payload = message.slice(constants.PUBLICKEY_SIZE + constants.SIGNATURE_SIZE, offset)
+    crypto.sign(signaturePayload, payload, secretKey)
+    const signatureCorrect = crypto.verify(signaturePayload, payload, publicKey)
+    if (!signatureCorrect) { 
+      throw new Error("could not verify created signature using keypair publicKey + secretKey") 
+    }
+
+    return message.slice(0, offset)
+  }
+
+  static toJSON(buf) {
+    // { publicKey, signature, link, postType, channel, timestamp, topic }
+    let offset = 0
+    // 1. get publicKey
+    const publicKey = buf.slice(0, constants.PUBLICKEY_SIZE)
+    offset += constants.PUBLICKEY_SIZE
+    // 2. get signature
+    const signature = buf.slice(offset, offset + constants.SIGNATURE_SIZE)
+    offset += constants.SIGNATURE_SIZE
+    // verify signature is correct
+    const signaturePayload = buf.slice(constants.PUBLICKEY_SIZE)
+    const payload = buf.slice(constants.PUBLICKEY_SIZE + constants.SIGNATURE_SIZE)
+    const signatureCorrect = crypto.verify(signaturePayload, payload, publicKey)
+    if (!signatureCorrect) { 
+      throw new Error("could not verify created signature using keypair publicKey + secretKey") 
+    }
+    // 3. get link
+    const link = buf.slice(offset, offset + constants.HASH_SIZE)
+    offset += constants.HASH_SIZE
+    // 4. get postType
+    const postType = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    if (postType !== constants.TOPIC_POST) {
+      return new Error(`"decoded postType (${postType}) is not of expected type (constants.TOPIC_POST)`)
+    }
+    // 5. get channelSize
+    const channelSize = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 6. use channelSize to get channel
+    const channel = buf.slice(offset, offset + channelSize).toString()
+    offset += channelSize
+    // 7. get timestamp
+    const timestamp = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 8. get topicSize
+    const topicSize = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 9. use topicSize to get topic
+    const topic = buf.slice(offset, offset + topicSize).toString()
+    offset += topicSize
+
+    return { publicKey, signature, link, postType, channel, timestamp, topic }
+  }
+}
+
+class JOIN_POST {
+  static create(publicKey, secretKey, link, channel, timestamp) {
+    if (!isBufferSize(publicKey, constants.PUBLICKEY_SIZE)) { throw bufferExpected("publicKey", constants.PUBLICKEY_SIZE) }
+    if (!isBufferSize(secretKey, constants.SECRETKEY_SIZE)) { throw bufferExpected("secretKey", constants.SECRETKEY_SIZE) }
+    if (!isBufferSize(link, constants.HASH_SIZE)) { throw bufferExpected("link", constants.HASH_SIZE) }
+    if (!isString(channel)) { throw stringExpected("channel") }
+    if (!isInteger(timestamp)) { throw integerExpected("timestamp") }
+    
+    let offset = 0
+    const message = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
+    // 1. write public key
+    offset += publicKey.copy(message, 0)
+    // 2. make space for signature, which is done last of all.
+    offset += constants.SIGNATURE_SIZE
+    // 3. write link, which is represents a hash i.e. a buffer
+    offset += link.copy(message, offset)
+    // 4. write postType
+    offset += writeVarint(constants.JOIN_POST, message, offset)
+    // 5. write channelSize
+    offset += writeVarint(channel.length, message, offset)
+    // 6. write the channel
+    offset += b4a.from(channel).copy(message, offset)
+    // 7. write timestamp
+    offset += writeVarint(timestamp, message, offset)
+    // now, time to make a signature
+    const signaturePayload = message.slice(constants.PUBLICKEY_SIZE, offset)
+    const payload = message.slice(constants.PUBLICKEY_SIZE + constants.SIGNATURE_SIZE, offset)
+    crypto.sign(signaturePayload, payload, secretKey)
+    const signatureCorrect = crypto.verify(signaturePayload, payload, publicKey)
+    if (!signatureCorrect) { 
+      throw new Error("could not verify created signature using keypair publicKey + secretKey") 
+    }
+
+    return message.slice(0, offset)
+  }
+
+  static toJSON(buf) {
+    // { publicKey, signature, link, postType, channel, timestamp }
+    let offset = 0
+    // 1. get publicKey
+    const publicKey = buf.slice(0, constants.PUBLICKEY_SIZE)
+    offset += constants.PUBLICKEY_SIZE
+    // 2. get signature
+    const signature = buf.slice(offset, offset + constants.SIGNATURE_SIZE)
+    offset += constants.SIGNATURE_SIZE
+    // verify signature is correct
+    const signaturePayload = buf.slice(constants.PUBLICKEY_SIZE)
+    const payload = buf.slice(constants.PUBLICKEY_SIZE + constants.SIGNATURE_SIZE)
+    const signatureCorrect = crypto.verify(signaturePayload, payload, publicKey)
+    if (!signatureCorrect) { 
+      throw new Error("could not verify created signature using keypair publicKey + secretKey") 
+    }
+    // 3. get link
+    const link = buf.slice(offset, offset + constants.HASH_SIZE)
+    offset += constants.HASH_SIZE
+    // 4. get postType
+    const postType = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    if (postType !== constants.JOIN_POST) {
+      return new Error(`"decoded postType (${postType}) is not of expected type (constants.JOIN_POST)`)
+    }
+    // 5. get channelSize
+    const channelSize = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 6. use channelSize to get channel
+    const channel = buf.slice(offset, offset + channelSize).toString()
+    offset += channelSize
+    // 7. get timestamp
+    const timestamp = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+
+    return { publicKey, signature, link, postType, channel, timestamp }
+  }
+}
+
+class LEAVE_POST {
+  static create(publicKey, secretKey, link, channel, timestamp) {
+    if (!isBufferSize(publicKey, constants.PUBLICKEY_SIZE)) { throw bufferExpected("publicKey", constants.PUBLICKEY_SIZE) }
+    if (!isBufferSize(secretKey, constants.SECRETKEY_SIZE)) { throw bufferExpected("secretKey", constants.SECRETKEY_SIZE) }
+    if (!isBufferSize(link, constants.HASH_SIZE)) { throw bufferExpected("link", constants.HASH_SIZE) }
+    if (!isString(channel)) { throw stringExpected("channel") }
+    if (!isInteger(timestamp)) { throw integerExpected("timestamp") }
+    
+    let offset = 0
+    const message = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
+    // 1. write public key
+    offset += publicKey.copy(message, 0)
+    // 2. make space for signature, which is done last of all.
+    offset += constants.SIGNATURE_SIZE
+    // 3. write link, which is represents a hash i.e. a buffer
+    offset += link.copy(message, offset)
+    // 4. write postType
+    offset += writeVarint(constants.LEAVE_POST, message, offset)
+    // 5. write channelSize
+    offset += writeVarint(channel.length, message, offset)
+    // 6. write the channel
+    offset += b4a.from(channel).copy(message, offset)
+    // 7. write timestamp
+    offset += writeVarint(timestamp, message, offset)
+    // now, time to make a signature
+    const signaturePayload = message.slice(constants.PUBLICKEY_SIZE, offset)
+    const payload = message.slice(constants.PUBLICKEY_SIZE + constants.SIGNATURE_SIZE, offset)
+    crypto.sign(signaturePayload, payload, secretKey)
+    const signatureCorrect = crypto.verify(signaturePayload, payload, publicKey)
+    if (!signatureCorrect) { 
+      throw new Error("could not verify created signature using keypair publicKey + secretKey") 
+    }
+
+    return message.slice(0, offset)
+  }
+
+  static toJSON(buf) {
+    // { publicKey, signature, link, postType, channel, timestamp }
+    let offset = 0
+    // 1. get publicKey
+    const publicKey = buf.slice(0, constants.PUBLICKEY_SIZE)
+    offset += constants.PUBLICKEY_SIZE
+    // 2. get signature
+    const signature = buf.slice(offset, offset + constants.SIGNATURE_SIZE)
+    offset += constants.SIGNATURE_SIZE
+    // verify signature is correct
+    const signaturePayload = buf.slice(constants.PUBLICKEY_SIZE)
+    const payload = buf.slice(constants.PUBLICKEY_SIZE + constants.SIGNATURE_SIZE)
+    const signatureCorrect = crypto.verify(signaturePayload, payload, publicKey)
+    if (!signatureCorrect) { 
+      throw new Error("could not verify created signature using keypair publicKey + secretKey") 
+    }
+    // 3. get link
+    const link = buf.slice(offset, offset + constants.HASH_SIZE)
+    offset += constants.HASH_SIZE
+    // 4. get postType
+    const postType = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    if (postType !== constants.LEAVE_POST) {
+      return new Error(`"decoded postType (${postType}) is not of expected type (constants.LEAVE_POST)`)
+    }
+    // 5. get channelSize
+    const channelSize = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 6. use channelSize to get channel
+    const channel = buf.slice(offset, offset + channelSize).toString()
+    offset += channelSize
+    // 7. get timestamp
+    const timestamp = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+
+    return { publicKey, signature, link, postType, channel, timestamp }
+  }
+}
 
 
 // peek returns the message type of a cablegram
@@ -700,6 +929,10 @@ module.exports = {
 
   TEXT_POST,
   DELETE_POST,
+  // INFO_POST,
+  TOPIC_POST,
+  JOIN_POST,
+  LEAVE_POST,
 
   peek 
 }

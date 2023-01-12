@@ -9,6 +9,9 @@ const CHANNEL_STATE_REQUEST = cable.CHANNEL_STATE_REQUEST
 const CHANNEL_LIST_REQUEST = cable.CHANNEL_LIST_REQUEST
 const TEXT_POST = cable.TEXT_POST
 const DELETE_POST = cable.DELETE_POST
+const TOPIC_POST = cable.TOPIC_POST
+const JOIN_POST = cable.JOIN_POST
+const LEAVE_POST = cable.LEAVE_POST
 const crypto = require("./cryptography.js")
 const b4a = require("b4a")
 
@@ -99,3 +102,33 @@ correct = (messageSignatureCorrectDelete ? "correct" : "incorrect")
 console.log("and the message is....", correct, `(${messageSignatureCorrectDelete})`)
 const objDelete = DELETE_POST.toJSON(bufDelete)
 console.log(objDelete)
+
+const bufTopic = TOPIC_POST.create(keypair.publicKey, keypair.secretKey, link, "introduction", 123, "introduce yourself to everyone else in this channel")
+const sigAndPayloadTopic = bufTopic.slice(constants.PUBLICKEY_SIZE)
+const payloadTopic = bufTopic.slice(constants.PUBLICKEY_SIZE + constants.SIGNATURE_SIZE)
+const messageSignatureCorrectTopic = crypto.verify(sigAndPayloadTopic, payloadTopic, keypair.publicKey)
+console.log(bufTopic)
+correct = (messageSignatureCorrectTopic ? "correct" : "incorrect")
+console.log("and the message is....", correct, `(${messageSignatureCorrectTopic})`)
+const objTopic = TOPIC_POST.toJSON(bufTopic)
+console.log(objTopic)
+
+const bufJoin = JOIN_POST.create(keypair.publicKey, keypair.secretKey, link, "introduction", 123)
+const sigAndPayloadJoin = bufJoin.slice(constants.PUBLICKEY_SIZE)
+const payloadJoin = bufJoin.slice(constants.PUBLICKEY_SIZE + constants.SIGNATURE_SIZE)
+const messageSignatureCorrectJoin = crypto.verify(sigAndPayloadJoin, payloadJoin, keypair.publicKey)
+console.log(bufJoin)
+correct = (messageSignatureCorrectJoin ? "correct" : "incorrect")
+console.log("and the message is....", correct, `(${messageSignatureCorrectJoin})`)
+const objJoin = JOIN_POST.toJSON(bufJoin)
+console.log(objJoin)
+
+const bufLeave = LEAVE_POST.create(keypair.publicKey, keypair.secretKey, link, "introduction", 124)
+const sigAndPayloadLeave = bufLeave.slice(constants.PUBLICKEY_SIZE)
+const payloadLeave = bufLeave.slice(constants.PUBLICKEY_SIZE + constants.SIGNATURE_SIZE)
+const messageSignatureCorrectLeave = crypto.verify(sigAndPayloadLeave, payloadLeave, keypair.publicKey)
+console.log(bufLeave)
+correct = (messageSignatureCorrectLeave ? "correct" : "incorrect")
+console.log("and the message is....", correct, `(${messageSignatureCorrectLeave})`)
+const objLeave = LEAVE_POST.toJSON(bufLeave)
+console.log(objLeave)
