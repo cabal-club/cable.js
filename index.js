@@ -55,7 +55,7 @@ class HASH_RESPONSE {
       offset += hash.copy(frame, offset)
     })
     // resize buffer, since we have written everything except msglen
-    frame = frame.slice(0, offset)
+    frame = frame.subarray(0, offset)
     return prependMsgLen(frame)
   }
   // takes a cablegram buffer and returns the json object: 
@@ -65,7 +65,7 @@ class HASH_RESPONSE {
     // 1. get msgLen
     const msgLen = decodeVarintSlice(buf, 0)
     offset += varint.decode.bytes
-    if (!isBufferSize(buf.slice(offset), msgLen)) { throw bufferExpected("remaining buf", msgLen) }
+    if (!isBufferSize(buf.subarray(offset), msgLen)) { throw bufferExpected("remaining buf", msgLen) }
     // 2. get msgType
     const msgType = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -73,7 +73,7 @@ class HASH_RESPONSE {
       throw new Error("decoded msgType is not of expected type (constants.HASH_RESPONSE)")
     }
     // 3. get reqid
-    const reqid = buf.slice(offset, offset+constants.REQID_SIZE)
+    const reqid = buf.subarray(offset, offset+constants.REQID_SIZE)
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
     offset += constants.REQID_SIZE
     // 4. get hashCount
@@ -82,7 +82,7 @@ class HASH_RESPONSE {
     // 5. use hashCount to slice out the hashes
     let hashes = []
     for (let i = 0; i < hashCount; i++) {
-      hashes.push(buf.slice(offset, offset + constants.HASH_SIZE))
+      hashes.push(buf.subarray(offset, offset + constants.HASH_SIZE))
       offset += constants.HASH_SIZE
     }
     if (!isArrayHashes(hashes)) { throw HASHES_EXPECTED }
@@ -111,7 +111,7 @@ class DATA_RESPONSE {
       offset += arrdata[i].copy(frame, offset)
     }
     // resize buffer, since we have written everything except msglen
-    frame = frame.slice(0, offset)
+    frame = frame.subarray(0, offset)
     return prependMsgLen(frame)
   }
   // takes a cablegram buffer and returns the json object: 
@@ -123,7 +123,7 @@ class DATA_RESPONSE {
     const msgLen = decodeVarintSlice(buf, 0)
     offset += varint.decode.bytes
     msgLenBytes = varint.decode.bytes
-    if (!isBufferSize(buf.slice(offset), msgLen)) { throw bufferExpected("remaining buf", msgLen) }
+    if (!isBufferSize(buf.subarray(offset), msgLen)) { throw bufferExpected("remaining buf", msgLen) }
     // 2. get msgType
     const msgType = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -131,7 +131,7 @@ class DATA_RESPONSE {
       throw new Error("decoded msgType is not of expected type (constants.DATA_RESPONSE)")
     }
     // 3. get reqid
-    const reqid = buf.slice(offset, offset+constants.REQID_SIZE)
+    const reqid = buf.subarray(offset, offset+constants.REQID_SIZE)
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
     offset += constants.REQID_SIZE
     // 4. remaining buffer consists of [dataLen, data] segments
@@ -144,7 +144,7 @@ class DATA_RESPONSE {
       const dataLen = decodeVarintSlice(buf, offset)
       offset += varint.decode.bytes
       // 5. use dataLen to slice out the hashes
-      data.push(buf.slice(offset, offset + dataLen))
+      data.push(buf.subarray(offset, offset + dataLen))
       offset += dataLen
       
       remaining = msgLen - offset + msgLenBytes
@@ -177,7 +177,7 @@ class HASH_REQUEST {
       offset += hash.copy(frame, offset)
     })
     // resize buffer, since we have written everything except msglen
-    frame = frame.slice(0, offset)
+    frame = frame.subarray(0, offset)
     return prependMsgLen(frame)
   }
 
@@ -188,7 +188,7 @@ class HASH_REQUEST {
     // 1. get msgLen
     const msgLen = decodeVarintSlice(buf, 0)
     offset += varint.decode.bytes
-    if (!isBufferSize(buf.slice(offset), msgLen)) { throw bufferExpected("remaining buf", msgLen) }
+    if (!isBufferSize(buf.subarray(offset), msgLen)) { throw bufferExpected("remaining buf", msgLen) }
     // 2. get msgType
     const msgType = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -196,7 +196,7 @@ class HASH_REQUEST {
       throw new Error("decoded msgType is not of expected type (constants.HASH_REQUEST)")
     }
     // 3. get reqid
-    const reqid = buf.slice(offset, offset+constants.REQID_SIZE)
+    const reqid = buf.subarray(offset, offset+constants.REQID_SIZE)
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
     offset += constants.REQID_SIZE
     // 4. get ttl
@@ -208,7 +208,7 @@ class HASH_REQUEST {
     // 6. use hashCount to slice out the hashes
     let hashes = []
     for (let i = 0; i < hashCount; i++) {
-      hashes.push(buf.slice(offset, offset + constants.HASH_SIZE))
+      hashes.push(buf.subarray(offset, offset + constants.HASH_SIZE))
       offset += constants.HASH_SIZE
     }
     if (!isArrayHashes(hashes)) { throw HASHES_EXPECTED }
@@ -231,7 +231,7 @@ class CANCEL_REQUEST {
     offset += reqid.copy(frame, varint.encode.bytes)
 
     // resize buffer, since we have written everything except msglen
-    frame = frame.slice(0, offset)
+    frame = frame.subarray(0, offset)
     return prependMsgLen(frame)
   }
 
@@ -242,7 +242,7 @@ class CANCEL_REQUEST {
     // 1. get mshLen
     const msgLen = decodeVarintSlice(buf, 0)
     offset += varint.decode.bytes
-    if (!isBufferSize(buf.slice(offset), msgLen)) { throw bufferExpected("remaining buf", msgLen) }
+    if (!isBufferSize(buf.subarray(offset), msgLen)) { throw bufferExpected("remaining buf", msgLen) }
     // 2. get msgType
     const msgType = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -250,7 +250,7 @@ class CANCEL_REQUEST {
       throw new Error("decoded msgType is not of expected type (constants.CANCEL_REQUEST)")
     }
     // 3. get reqid
-    const reqid = buf.slice(offset, offset+constants.REQID_SIZE)
+    const reqid = buf.subarray(offset, offset+constants.REQID_SIZE)
     offset += constants.REQID_SIZE
 
     return { msgLen, msgType, reqid }
@@ -286,7 +286,7 @@ class TIME_RANGE_REQUEST {
     // 8. write limit
     offset += writeVarint(limit, frame, offset)
     // resize buffer, since we have written everything except msglen
-    frame = frame.slice(0, offset)
+    frame = frame.subarray(0, offset)
     return prependMsgLen(frame)
   }
   
@@ -297,7 +297,7 @@ class TIME_RANGE_REQUEST {
     // 1. get msgLen
     const msgLen = decodeVarintSlice(buf, 0)
     offset += varint.decode.bytes
-    if (!isBufferSize(buf.slice(offset), msgLen)) { throw bufferExpected("remaining buf", msgLen) }
+    if (!isBufferSize(buf.subarray(offset), msgLen)) { throw bufferExpected("remaining buf", msgLen) }
     // 2. get msgType
     const msgType = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -305,7 +305,7 @@ class TIME_RANGE_REQUEST {
       return new Error(`"decoded msgType (${msgType}) is not of expected type (constants.TIME_RANGE_REQUEST)`)
     }
     // 3. get reqid
-    const reqid = buf.slice(offset, offset+constants.REQID_SIZE)
+    const reqid = buf.subarray(offset, offset+constants.REQID_SIZE)
     offset += constants.REQID_SIZE
     // 4. get ttl
     const ttl = decodeVarintSlice(buf, offset)
@@ -314,7 +314,7 @@ class TIME_RANGE_REQUEST {
     const channelSize = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
     // 6. use channelSize to slice out the channel
-    const channel = buf.slice(offset, offset + channelSize).toString()
+    const channel = buf.subarray(offset, offset + channelSize).toString()
     offset += channelSize
     // 7. get timeStart
     const timeStart = decodeVarintSlice(buf, offset)
@@ -356,7 +356,7 @@ class CHANNEL_STATE_REQUEST {
     // 7. write updates
     offset += writeVarint(updates, frame, offset)
     // resize buffer, since we have written everything except msglen
-    frame = frame.slice(0, offset)
+    frame = frame.subarray(0, offset)
     return prependMsgLen(frame)
   }
   // takes a cablegram buffer and returns the json object: 
@@ -366,7 +366,7 @@ class CHANNEL_STATE_REQUEST {
     // 1. get msgLen
     const msgLen = decodeVarintSlice(buf, 0)
     offset += varint.decode.bytes
-    if (!isBufferSize(buf.slice(offset), msgLen)) { throw bufferExpected("remaining buf", msgLen) }
+    if (!isBufferSize(buf.subarray(offset), msgLen)) { throw bufferExpected("remaining buf", msgLen) }
     // 2. get msgType
     const msgType = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -374,7 +374,7 @@ class CHANNEL_STATE_REQUEST {
       return new Error(`"decoded msgType (${msgType}) is not of expected type (constants.CHANNEL_STATE_REQUEST)`)
     }
     // 3. get reqid
-    const reqid = buf.slice(offset, offset+constants.REQID_SIZE)
+    const reqid = buf.subarray(offset, offset+constants.REQID_SIZE)
     offset += constants.REQID_SIZE
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
     // 4. get ttl
@@ -384,7 +384,7 @@ class CHANNEL_STATE_REQUEST {
     const channelSize = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
     // 6. use channelSize to slice out channel
-    const channel = buf.slice(offset, offset + channelSize).toString()
+    const channel = buf.subarray(offset, offset + channelSize).toString()
     offset += channelSize
     // 7. get limit
     const limit = decodeVarintSlice(buf, offset)
@@ -415,7 +415,7 @@ class CHANNEL_LIST_REQUEST {
     // 4. write limit 
     offset += writeVarint(limit, frame, offset)
     // resize buffer, since we have written everything except msglen
-    frame = frame.slice(0, offset)
+    frame = frame.subarray(0, offset)
     return prependMsgLen(frame)
   }
   // takes a cablegram buffer and returns the json object: 
@@ -425,7 +425,7 @@ class CHANNEL_LIST_REQUEST {
     // 1. get msgLen
     const msgLen = decodeVarintSlice(buf, 0)
     offset += varint.decode.bytes
-    if (!isBufferSize(buf.slice(offset), msgLen)) { throw bufferExpected("remaining buf", msgLen) }
+    if (!isBufferSize(buf.subarray(offset), msgLen)) { throw bufferExpected("remaining buf", msgLen) }
     // 2. get msgType
     const msgType = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -433,7 +433,7 @@ class CHANNEL_LIST_REQUEST {
       return new Error(`"decoded msgType (${msgType}) is not of expected type (constants.CHANNEL_LIST_REQUEST)`)
     }
     // 3. get reqid
-    const reqid = buf.slice(offset, offset+constants.REQID_SIZE)
+    const reqid = buf.subarray(offset, offset+constants.REQID_SIZE)
     offset += constants.REQID_SIZE
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
     // 4. get ttl
@@ -476,24 +476,24 @@ class TEXT_POST {
     offset += writeVarint(text.length, message, offset)
     // 9. write the text
     offset += b4a.from(text).copy(message, offset)
-    // now, time to make a signature
-    crypto.sign(message.slice(0, offset), secretKey)
-    const signatureCorrect = crypto.verify(message.slice(0, offset), publicKey)
+    // now, time to make a signature, make sure we pass the correct sized buffer
+    crypto.sign(message.subarray(0, offset), secretKey)
+    const signatureCorrect = crypto.verify(message.subarray(0, offset), publicKey)
     if (!signatureCorrect) { 
       throw new Error("could not verify created signature using keypair publicKey + secretKey") 
     }
 
-    return message.slice(0, offset)
+    return message.subarray(0, offset)
   }
 
   static toJSON(buf) {
     // { publicKey, signature, link, postType, channel, timestamp, text }
     let offset = 0
     // 1. get publicKey
-    const publicKey = buf.slice(0, constants.PUBLICKEY_SIZE)
+    const publicKey = buf.subarray(0, constants.PUBLICKEY_SIZE)
     offset += constants.PUBLICKEY_SIZE
     // 2. get signature
-    const signature = buf.slice(offset, offset + constants.SIGNATURE_SIZE)
+    const signature = buf.subarray(offset, offset + constants.SIGNATURE_SIZE)
     offset += constants.SIGNATURE_SIZE
     // verify signature is correct
     const signatureCorrect = crypto.verify(buf, publicKey)
@@ -501,7 +501,7 @@ class TEXT_POST {
       throw new Error("could not verify created signature using keypair publicKey + secretKey") 
     }
     // 3. get link
-    const link = buf.slice(offset, offset + constants.HASH_SIZE)
+    const link = buf.subarray(offset, offset + constants.HASH_SIZE)
     offset += constants.HASH_SIZE
     // 4. get postType
     const postType = decodeVarintSlice(buf, offset)
@@ -513,7 +513,7 @@ class TEXT_POST {
     const channelSize = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
     // 6. use channelSize to get channel
-    const channel = buf.slice(offset, offset + channelSize).toString()
+    const channel = buf.subarray(offset, offset + channelSize).toString()
     offset += channelSize
     // 7. get timestamp
     const timestamp = decodeVarintSlice(buf, offset)
@@ -522,7 +522,7 @@ class TEXT_POST {
     const textSize = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
     // 9. use textSize to get text
-    const text = buf.slice(offset, offset + textSize).toString()
+    const text = buf.subarray(offset, offset + textSize).toString()
     offset += textSize
 
     return { publicKey, signature, link, postType, channel, timestamp, text }
@@ -551,23 +551,23 @@ class DELETE_POST {
     offset += writeVarint(timestamp, message, offset)
     // 6. write hash, which represents the hash of the post we are requesting peers to delete
     offset += hash.copy(message, offset)
-    // now, time to sign the message
-    crypto.sign(message.slice(0, offset), secretKey)
-    const signatureCorrect = crypto.verify(message.slice(0, offset), publicKey)
+    // now, time to sign the message. 
+    crypto.sign(message.subarray(0, offset), secretKey)
+    const signatureCorrect = crypto.verify(message.subarray(0, offset), publicKey)
     if (!signatureCorrect) { 
       throw new Error("could not verify created signature using keypair publicKey + secretKey") 
     }
 
-    return message.slice(0, offset)
+    return message.subarray(0, offset)
   }
   static toJSON(buf) {
     // { publicKey, signature, link, postType, timestamp, hash }
     let offset = 0
     // 1. get publicKey
-    const publicKey = buf.slice(0, constants.PUBLICKEY_SIZE)
+    const publicKey = buf.subarray(0, constants.PUBLICKEY_SIZE)
     offset += constants.PUBLICKEY_SIZE
     // 2. get signature
-    const signature = buf.slice(offset, offset + constants.SIGNATURE_SIZE)
+    const signature = buf.subarray(offset, offset + constants.SIGNATURE_SIZE)
     offset += constants.SIGNATURE_SIZE
     // verify signature is correct
     const signatureCorrect = crypto.verify(buf, publicKey)
@@ -575,7 +575,7 @@ class DELETE_POST {
       throw new Error("could not verify created signature using keypair publicKey + secretKey") 
     }
     // 3. get link
-    const link = buf.slice(offset, offset + constants.HASH_SIZE)
+    const link = buf.subarray(offset, offset + constants.HASH_SIZE)
     offset += constants.HASH_SIZE
     // 4. get postType
     const postType = decodeVarintSlice(buf, offset)
@@ -587,7 +587,7 @@ class DELETE_POST {
     const timestamp = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
     // 6. get hash
-    const hash = buf.slice(offset, offset + constants.HASH_SIZE)
+    const hash = buf.subarray(offset, offset + constants.HASH_SIZE)
     offset += constants.HASH_SIZE
 
     return { publicKey, signature, link, postType, timestamp, hash }
@@ -624,24 +624,24 @@ class INFO_POST {
     offset += writeVarint(value.length, message, offset)
     // 9. write the value
     offset += b4a.from(value).copy(message, offset)
-    // now, time to make a signature
-    crypto.sign(message.slice(0, offset), secretKey)
-    const signatureCorrect = crypto.verify(message.slice(0, offset), publicKey)
+    // now, time to make a signature, make sure we pass the correct sized buffer
+    crypto.sign(message.subarray(0, offset), secretKey)
+    const signatureCorrect = crypto.verify(message.subarray(0, offset), publicKey)
     if (!signatureCorrect) { 
       throw new Error("could not verify created signature using keypair publicKey + secretKey") 
     }
 
-    return message.slice(0, offset)
+    return message.subarray(0, offset)
   }
 
   static toJSON(buf) {
     // { publicKey, signature, link, postType, timestamp, key, value }
     let offset = 0
     // 1. get publicKey
-    const publicKey = buf.slice(0, constants.PUBLICKEY_SIZE)
+    const publicKey = buf.subarray(0, constants.PUBLICKEY_SIZE)
     offset += constants.PUBLICKEY_SIZE
     // 2. get signature
-    const signature = buf.slice(offset, offset + constants.SIGNATURE_SIZE)
+    const signature = buf.subarray(offset, offset + constants.SIGNATURE_SIZE)
     offset += constants.SIGNATURE_SIZE
     // verify signature is correct
     const signatureCorrect = crypto.verify(buf, publicKey)
@@ -649,7 +649,7 @@ class INFO_POST {
       throw new Error("could not verify created signature using keypair publicKey + secretKey") 
     }
     // 3. get link
-    const link = buf.slice(offset, offset + constants.HASH_SIZE)
+    const link = buf.subarray(offset, offset + constants.HASH_SIZE)
     offset += constants.HASH_SIZE
     // 4. get postType
     const postType = decodeVarintSlice(buf, offset)
@@ -664,13 +664,13 @@ class INFO_POST {
     const keySize = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
     // 7. use keySize to get key
-    const key = buf.slice(offset, offset + keySize).toString()
+    const key = buf.subarray(offset, offset + keySize).toString()
     offset += keySize
     // 8. get valueSize
     const valueSize = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
     // 9. use valueSize to get value
-    const value = buf.slice(offset, offset + valueSize).toString()
+    const value = buf.subarray(offset, offset + valueSize).toString()
     offset += valueSize
 
     return { publicKey, signature, link, postType, timestamp, key, value }
@@ -707,24 +707,24 @@ class TOPIC_POST {
     offset += writeVarint(topic.length, message, offset)
     // 9. write the topic
     offset += b4a.from(topic).copy(message, offset)
-    // now, time to make a signature
-    crypto.sign(message.slice(0, offset), secretKey)
-    const signatureCorrect = crypto.verify(message.slice(0, offset), publicKey)
+    // now, time to make a signature, make sure we pass the correct sized buffer
+    crypto.sign(message.subarray(0, offset), secretKey)
+    const signatureCorrect = crypto.verify(message.subarray(0, offset), publicKey)
     if (!signatureCorrect) { 
       throw new Error("could not verify created signature using keypair publicKey + secretKey") 
     }
 
-    return message.slice(0, offset)
+    return message.subarray(0, offset)
   }
 
   static toJSON(buf) {
     // { publicKey, signature, link, postType, channel, timestamp, topic }
     let offset = 0
     // 1. get publicKey
-    const publicKey = buf.slice(0, constants.PUBLICKEY_SIZE)
+    const publicKey = buf.subarray(0, constants.PUBLICKEY_SIZE)
     offset += constants.PUBLICKEY_SIZE
     // 2. get signature
-    const signature = buf.slice(offset, offset + constants.SIGNATURE_SIZE)
+    const signature = buf.subarray(offset, offset + constants.SIGNATURE_SIZE)
     offset += constants.SIGNATURE_SIZE
     // verify signature is correct
     const signatureCorrect = crypto.verify(buf, publicKey)
@@ -732,7 +732,7 @@ class TOPIC_POST {
       throw new Error("could not verify created signature using keypair publicKey + secretKey") 
     }
     // 3. get link
-    const link = buf.slice(offset, offset + constants.HASH_SIZE)
+    const link = buf.subarray(offset, offset + constants.HASH_SIZE)
     offset += constants.HASH_SIZE
     // 4. get postType
     const postType = decodeVarintSlice(buf, offset)
@@ -744,7 +744,7 @@ class TOPIC_POST {
     const channelSize = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
     // 6. use channelSize to get channel
-    const channel = buf.slice(offset, offset + channelSize).toString()
+    const channel = buf.subarray(offset, offset + channelSize).toString()
     offset += channelSize
     // 7. get timestamp
     const timestamp = decodeVarintSlice(buf, offset)
@@ -753,7 +753,7 @@ class TOPIC_POST {
     const topicSize = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
     // 9. use topicSize to get topic
-    const topic = buf.slice(offset, offset + topicSize).toString()
+    const topic = buf.subarray(offset, offset + topicSize).toString()
     offset += topicSize
 
     return { publicKey, signature, link, postType, channel, timestamp, topic }
@@ -784,24 +784,24 @@ class JOIN_POST {
     offset += b4a.from(channel).copy(message, offset)
     // 7. write timestamp
     offset += writeVarint(timestamp, message, offset)
-    // now, time to make a signature
-    crypto.sign(message.slice(0, offset), secretKey)
-    const signatureCorrect = crypto.verify(message.slice(0, offset), publicKey)
+    // now, time to make a signature, make sure we pass the correct sized buffer
+    crypto.sign(message.subarray(0, offset), secretKey)
+    const signatureCorrect = crypto.verify(message.subarray(0, offset), publicKey)
     if (!signatureCorrect) { 
       throw new Error("could not verify created signature using keypair publicKey + secretKey") 
     }
 
-    return message.slice(0, offset)
+    return message.subarray(0, offset)
   }
 
   static toJSON(buf) {
     // { publicKey, signature, link, postType, channel, timestamp }
     let offset = 0
     // 1. get publicKey
-    const publicKey = buf.slice(0, constants.PUBLICKEY_SIZE)
+    const publicKey = buf.subarray(0, constants.PUBLICKEY_SIZE)
     offset += constants.PUBLICKEY_SIZE
     // 2. get signature
-    const signature = buf.slice(offset, offset + constants.SIGNATURE_SIZE)
+    const signature = buf.subarray(offset, offset + constants.SIGNATURE_SIZE)
     offset += constants.SIGNATURE_SIZE
     // verify signature is correct
     const signatureCorrect = crypto.verify(buf, publicKey)
@@ -809,7 +809,7 @@ class JOIN_POST {
       throw new Error("could not verify created signature using keypair publicKey + secretKey") 
     }
     // 3. get link
-    const link = buf.slice(offset, offset + constants.HASH_SIZE)
+    const link = buf.subarray(offset, offset + constants.HASH_SIZE)
     offset += constants.HASH_SIZE
     // 4. get postType
     const postType = decodeVarintSlice(buf, offset)
@@ -821,7 +821,7 @@ class JOIN_POST {
     const channelSize = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
     // 6. use channelSize to get channel
-    const channel = buf.slice(offset, offset + channelSize).toString()
+    const channel = buf.subarray(offset, offset + channelSize).toString()
     offset += channelSize
     // 7. get timestamp
     const timestamp = decodeVarintSlice(buf, offset)
@@ -855,24 +855,24 @@ class LEAVE_POST {
     offset += b4a.from(channel).copy(message, offset)
     // 7. write timestamp
     offset += writeVarint(timestamp, message, offset)
-    // now, time to make a signature
-    crypto.sign(message.slice(0, offset), secretKey)
-    const signatureCorrect = crypto.verify(message.slice(0, offset), publicKey)
+    // now, time to make a signature, make sure we pass the correct sized buffer
+    crypto.sign(message.subarray(0, offset), secretKey)
+    const signatureCorrect = crypto.verify(message.subarray(0, offset), publicKey)
     if (!signatureCorrect) { 
       throw new Error("could not verify created signature using keypair publicKey + secretKey") 
     }
 
-    return message.slice(0, offset)
+    return message.subarray(0, offset)
   }
 
   static toJSON(buf) {
     // { publicKey, signature, link, postType, channel, timestamp }
     let offset = 0
     // 1. get publicKey
-    const publicKey = buf.slice(0, constants.PUBLICKEY_SIZE)
+    const publicKey = buf.subarray(0, constants.PUBLICKEY_SIZE)
     offset += constants.PUBLICKEY_SIZE
     // 2. get signature
-    const signature = buf.slice(offset, offset + constants.SIGNATURE_SIZE)
+    const signature = buf.subarray(offset, offset + constants.SIGNATURE_SIZE)
     offset += constants.SIGNATURE_SIZE
     // verify signature is correct
     const signatureCorrect = crypto.verify(buf, publicKey)
@@ -880,7 +880,7 @@ class LEAVE_POST {
       throw new Error("could not verify created signature using keypair publicKey + secretKey") 
     }
     // 3. get link
-    const link = buf.slice(offset, offset + constants.HASH_SIZE)
+    const link = buf.subarray(offset, offset + constants.HASH_SIZE)
     offset += constants.HASH_SIZE
     // 4. get postType
     const postType = decodeVarintSlice(buf, offset)
@@ -892,7 +892,7 @@ class LEAVE_POST {
     const channelSize = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
     // 6. use channelSize to get channel
-    const channel = buf.slice(offset, offset + channelSize).toString()
+    const channel = buf.subarray(offset, offset + channelSize).toString()
     offset += channelSize
     // 7. get timestamp
     const timestamp = decodeVarintSlice(buf, offset)
@@ -924,7 +924,7 @@ function decodeVarintSlice (frame, offset) {
   let sliceEnd 
   for (let i = 1; i < constants.MAX_VARINT_SIZE; i++) {
     sliceEnd = offset + i 
-    const frameSlice = frame.slice(offset, sliceEnd)
+    const frameSlice = frame.subarray(offset, sliceEnd)
     try {
       decodedSlice = varint.decode(frameSlice)
       return decodedSlice

@@ -21,14 +21,14 @@ function generateKeypair() {
 }
 
 function sign (buf, secretKey) {
-  const sigAndPayload = buf.slice(sodium.crypto_sign_PUBLICKEYBYTES)
-  const payload = buf.slice(sodium.crypto_sign_PUBLICKEYBYTES + sodium.crypto_sign_BYTES)
+  const sigAndPayload = buf.subarray(sodium.crypto_sign_PUBLICKEYBYTES)
+  const payload = buf.subarray(sodium.crypto_sign_PUBLICKEYBYTES + sodium.crypto_sign_BYTES)
   sodium.crypto_sign(sigAndPayload, payload, secretKey)
 }
 
 function verify (buf, publicKey) {
-  const sigAndPayload = buf.slice(sodium.crypto_sign_PUBLICKEYBYTES)
-  const payload = buf.slice(sodium.crypto_sign_PUBLICKEYBYTES + sodium.crypto_sign_BYTES)
+  const sigAndPayload = buf.subarray(sodium.crypto_sign_PUBLICKEYBYTES)
+  const payload = buf.subarray(sodium.crypto_sign_PUBLICKEYBYTES + sodium.crypto_sign_BYTES)
   return sodium.crypto_sign_open(payload, sigAndPayload, publicKey)
 }
 
