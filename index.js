@@ -10,9 +10,6 @@ const crypto = require("./cryptography.js")
 // * reserve 4 bytes between `req_id` and `ttl`
 //  in requests, and also in responses after `req_id` for circuits
 
-// TODO (2023-01-12): check amount of arguments, if incorrect respond with an error 
-// like "expected <amount> arguments: <function signature>"
-
 // TODO (2023-01-11): regarding byte size of a string
 // is it enough to simply do str.length to get the correct byte size? any gotchas?
 
@@ -30,8 +27,13 @@ function stringExpected (param) {
   return new Error(`expected ${param} to be a string`)
 }
 
+function wrongNumberArguments(count, actual, functionSignature) {
+ return new Error(`${functionSignature} expected ${count} arguments but received ${actual}`) 
+}
+
 class HASH_RESPONSE {
   static create(reqid, hashes) {
+    if (arguments.length !== 2) { throw wrongNumberArguments(2, arguments.length, "create(reqid, hashes)") }
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
     if (!isArrayHashes(hashes)) { throw HASHES_EXPECTED }
     // allocate default-sized buffer
@@ -86,6 +88,7 @@ class HASH_RESPONSE {
 
 class DATA_RESPONSE {
   static create(reqid, arrdata) {
+    if (arguments.length !== 2) { throw wrongNumberArguments(2, arguments.length, "create(reqid, arrdata)") }
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
     // TODO (2023-01-11): sanitize arr of data?
     // allocate default-sized buffer
@@ -149,6 +152,7 @@ class DATA_RESPONSE {
 class HASH_REQUEST {
   // constructs a cablegram buffer using the incoming arguments
   static create(reqid, ttl, hashes) {
+    if (arguments.length !== 3) { throw wrongNumberArguments(3, arguments.length, "create(reqid, ttl, hashes)") }
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
     if (!isInteger(ttl)) { throw integerExpected("ttl") }
     if (!isArrayHashes(hashes)) { throw HASHES_EXPECTED }
@@ -212,6 +216,7 @@ class HASH_REQUEST {
 class CANCEL_REQUEST {
   // constructs a cablegram buffer using the incoming arguments
   static create(reqid) {
+    if (arguments.length !== 1) { throw wrongNumberArguments(1, arguments.length, "create(reqid)") }
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
 
     // allocate default-sized buffer
@@ -251,6 +256,7 @@ class CANCEL_REQUEST {
 
 class TIME_RANGE_REQUEST {
   static create(reqid, ttl, channel, timeStart, timeEnd, limit) {
+    if (arguments.length !== 6) { throw wrongNumberArguments(6, arguments.length, "create(reqid, ttl, channel, timeStart, timeEnd, limit)") }
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
     if (!isInteger(ttl)) { throw integerExpected("ttl") }
     if (!isString(channel)) { throw stringExpected("channel") }
@@ -324,6 +330,7 @@ class TIME_RANGE_REQUEST {
 
 class CHANNEL_STATE_REQUEST {
   static create(reqid, ttl, channel, limit, updates) {
+    if (arguments.length !== 5) { throw wrongNumberArguments(5, arguments.length, "create(reqid, ttl, channel, limit, updates)") }
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
     if (!isInteger(ttl)) { throw integerExpected("ttl") }
     if (!isString(channel)) { throw stringExpected("channel") }
@@ -391,6 +398,7 @@ class CHANNEL_STATE_REQUEST {
 
 class CHANNEL_LIST_REQUEST {
   static create(reqid, ttl, limit) {
+    if (arguments.length !== 3) { throw wrongNumberArguments(3, arguments.length, "create(reqid, ttl, limit)") }
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
     if (!isInteger(ttl)) { throw integerExpected("ttl") }
     if (!isInteger(limit)) { throw integerExpected("limit") }
@@ -441,6 +449,7 @@ class CHANNEL_LIST_REQUEST {
 
 class TEXT_POST {
   static create(publicKey, secretKey, link, channel, timestamp, text) {
+    if (arguments.length !== 6) { throw wrongNumberArguments(6, arguments.length, "create(publicKey, secretKey, link, channel, timestamp, text)") }
     if (!isBufferSize(publicKey, constants.PUBLICKEY_SIZE)) { throw bufferExpected("publicKey", constants.PUBLICKEY_SIZE) }
     if (!isBufferSize(secretKey, constants.SECRETKEY_SIZE)) { throw bufferExpected("secretKey", constants.SECRETKEY_SIZE) }
     if (!isBufferSize(link, constants.HASH_SIZE)) { throw bufferExpected("link", constants.HASH_SIZE) }
@@ -526,6 +535,7 @@ class TEXT_POST {
 
 class DELETE_POST {
   static create(publicKey, secretKey, link, timestamp, hash) {
+    if (arguments.length !== 5) { throw wrongNumberArguments(5, arguments.length, "create(publicKey, secretKey, link, timestamp, hash)") }
     if (!isBufferSize(publicKey, constants.PUBLICKEY_SIZE)) { throw bufferExpected("publicKey", constants.PUBLICKEY_SIZE) }
     if (!isBufferSize(secretKey, constants.SECRETKEY_SIZE)) { throw bufferExpected("secretKey", constants.SECRETKEY_SIZE) }
     if (!isBufferSize(link, constants.HASH_SIZE)) { throw bufferExpected("link", constants.HASH_SIZE) }
@@ -596,6 +606,7 @@ class DELETE_POST {
 // intentionally left blank; will loop back to
 class INFO_POST {
   static create(publicKey, secretKey, link, timestamp, key, value) {
+    if (arguments.length !== 6) { throw wrongNumberArguments(6, arguments.length, "create(publicKey, secretKey, link, timestamp, key, value)") }
     if (!isBufferSize(publicKey, constants.PUBLICKEY_SIZE)) { throw bufferExpected("publicKey", constants.PUBLICKEY_SIZE) }
     if (!isBufferSize(secretKey, constants.SECRETKEY_SIZE)) { throw bufferExpected("secretKey", constants.SECRETKEY_SIZE) }
     if (!isBufferSize(link, constants.HASH_SIZE)) { throw bufferExpected("link", constants.HASH_SIZE) }
@@ -682,6 +693,7 @@ class INFO_POST {
 
 class TOPIC_POST {
   static create(publicKey, secretKey, link, channel, timestamp, topic) {
+    if (arguments.length !== 6) { throw wrongNumberArguments(6, arguments.length, "create(publicKey, secretKey, link, channel, timestamp, topic)") }
     if (!isBufferSize(publicKey, constants.PUBLICKEY_SIZE)) { throw bufferExpected("publicKey", constants.PUBLICKEY_SIZE) }
     if (!isBufferSize(secretKey, constants.SECRETKEY_SIZE)) { throw bufferExpected("secretKey", constants.SECRETKEY_SIZE) }
     if (!isBufferSize(link, constants.HASH_SIZE)) { throw bufferExpected("link", constants.HASH_SIZE) }
@@ -767,6 +779,7 @@ class TOPIC_POST {
 
 class JOIN_POST {
   static create(publicKey, secretKey, link, channel, timestamp) {
+    if (arguments.length !== 5) { throw wrongNumberArguments(5, arguments.length, "create(publicKey, secretKey, link, channel, timestamp)") }
     if (!isBufferSize(publicKey, constants.PUBLICKEY_SIZE)) { throw bufferExpected("publicKey", constants.PUBLICKEY_SIZE) }
     if (!isBufferSize(secretKey, constants.SECRETKEY_SIZE)) { throw bufferExpected("secretKey", constants.SECRETKEY_SIZE) }
     if (!isBufferSize(link, constants.HASH_SIZE)) { throw bufferExpected("link", constants.HASH_SIZE) }
@@ -841,6 +854,7 @@ class JOIN_POST {
 
 class LEAVE_POST {
   static create(publicKey, secretKey, link, channel, timestamp) {
+    if (arguments.length !== 5) { throw wrongNumberArguments(5, arguments.length, "create(publicKey, secretKey, link, channel, timestamp)") }
     if (!isBufferSize(publicKey, constants.PUBLICKEY_SIZE)) { throw bufferExpected("publicKey", constants.PUBLICKEY_SIZE) }
     if (!isBufferSize(secretKey, constants.SECRETKEY_SIZE)) { throw bufferExpected("secretKey", constants.SECRETKEY_SIZE) }
     if (!isBufferSize(link, constants.HASH_SIZE)) { throw bufferExpected("link", constants.HASH_SIZE) }
