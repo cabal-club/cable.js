@@ -937,6 +937,13 @@ function peek (buf) {
   return decodeVarintSlice(buf, offset)
 }
 
+// peek a buffer containing a cable post and return its post type
+function peekPost (buf) {
+  // decode msg len, and discard
+  const offset = constants.PUBLICKEY_SIZE + constants.SIGNATURE_SIZE + constants.HASH_SIZE
+  return decodeVarintSlice(buf, offset)
+}
+
 function prependMsgLen (buf) {
   const msglen = encodeVarintBuffer(buf.length)
   // prepend msglen before the contents and we're done
@@ -1019,5 +1026,6 @@ module.exports = {
   JOIN_POST,
   LEAVE_POST,
 
-  peek 
+  peek,
+  peekPost
 }
