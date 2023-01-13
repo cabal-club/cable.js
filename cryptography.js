@@ -36,7 +36,7 @@ function generateKeypair() {
   return kp
 }
 
-// buf is a buffer that is exactly as large as the message (i.e. no overshooting placegholder bytes after message
+// buf is a buffer that is exactly as large as the message (i.e. no overshooting placeholder bytes after message
 // payload)
 function sign (buf, secretKey) {
   if (!b4a.isBuffer(buf)) {
@@ -50,7 +50,7 @@ function sign (buf, secretKey) {
   sodium.crypto_sign(sigAndPayload, payload, secretKey)
 }
 
-// buf is a buffer that is exactly as large as the message (i.e. no overshooting placegholder bytes after message
+// buf is a buffer that is exactly as large as the message (i.e. no overshooting placeholder bytes after message
 // payload)
 function verify (buf, publicKey) {
   if (!b4a.isBuffer(buf)) {
