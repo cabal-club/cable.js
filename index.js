@@ -90,7 +90,7 @@ class DATA_RESPONSE {
   static create(reqid, arrdata) {
     if (arguments.length !== 2) { throw wrongNumberArguments(2, arguments.length, "create(reqid, arrdata)") }
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
-    // TODO (2023-01-11): sanitize arr of data?
+    if (!isArrayData(arrdata)) { throw new Error(`expected data to be a buffer`) }
     // allocate default-sized buffer
     let frame = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
     let offset = 0
@@ -985,14 +985,26 @@ function isString (s) {
   return typeof s === "string"
 }
 
+function isArrayData (arr) {
+  if (Array.isArray(arr)) {
+    for (let i = 0; i < arr.length; i++) {
+      if (!b4a.isBuffer(arr[i])) {
+        return false
+      }
+    }
+    return true
+  }
+  return false
+}
+
 function isArrayHashes (arr) {
   if (Array.isArray(arr)) {
     for (let i = 0; i < arr.length; i++) {
       if (!isBufferSize(arr[i], constants.HASH_SIZE)) {
         return false
       }
-      return true
     }
+    return true
   }
   return false
 }
