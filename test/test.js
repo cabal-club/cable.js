@@ -99,7 +99,38 @@ test("1: data response - wrong parameters", t => {
   t.end()
 })
 
-test("2: cancel request", t => {
+test("2: hash request", t => {
+  const hashes = generateFakeHashes(4)
+  const reqid = crypto.generateReqID()
+  const ttl = 4
+
+  const buf = HASH_REQUEST.create(reqid, ttl, hashes)
+  t.same(cable.peek(buf), constants.HASH_REQUEST, "msg type should be hash request")
+  const obj = HASH_REQUEST.toJSON(buf)
+  t.same(obj.reqid, reqid, "reqid should be same")
+  t.same(obj.ttl, ttl, "ttl should be same")
+  t.same(obj.hashes, hashes, "hashes should be the same")
+  t.same(obj.msgType, constants.HASH_REQUEST, "deserialized msg type should be hash request")
+  t.end()
+})
+
+test("2: hash request, decrement ttl", t => {
+  const hashes = generateFakeHashes(4)
+  const reqid = crypto.generateReqID()
+  const ttl = 4
+
+  const buf = HASH_REQUEST.create(reqid, ttl, hashes)
+  const newBuf = HASH_REQUEST.decrementTTL(buf)
+  t.same(cable.peek(newBuf), constants.HASH_REQUEST, "msg type should be hash request")
+  const obj = HASH_REQUEST.toJSON(newBuf)
+  t.same(obj.reqid, reqid, "reqid should be same")
+  t.same(obj.ttl, ttl - 1, "ttl should be one less than originally")
+  t.same(obj.hashes, hashes, "hashes should be the same")
+  t.same(obj.msgType, constants.HASH_REQUEST, "deserialized msg type should be hash request")
+  t.end()
+})
+
+test("3: cancel request", t => {
   const reqid = crypto.generateReqID()
   const buf = CANCEL_REQUEST.create(reqid)
   t.same(cable.peek(buf), constants.CANCEL_REQUEST, "msg type should be cancel request")
@@ -109,7 +140,7 @@ test("2: cancel request", t => {
   t.end()
 })
 
-test("3: channel time range request", t => {
+test("4: channel time range request", t => {
   const reqid = crypto.generateReqID()
   const channel = "default"
   const ttl = 3
@@ -130,7 +161,29 @@ test("3: channel time range request", t => {
   t.end()
 })
 
-test("4: channel state request", t => {
+test("4: channel time range request, decrement ttl", t => {
+  const reqid = crypto.generateReqID()
+  const channel = "default"
+  const ttl = 3
+  const timeStart = 0
+  const timeEnd = 100
+  const limit = 20
+
+  const buf = TIME_RANGE_REQUEST.create(reqid, ttl, channel, timeStart, timeEnd, limit)
+  const newBuf = TIME_RANGE_REQUEST.decrementTTL(buf)
+  t.same(cable.peek(newBuf), constants.TIME_RANGE_REQUEST, "msg type should be channel time range request")
+  const obj = TIME_RANGE_REQUEST.toJSON(newBuf)
+  t.same(obj.reqid, reqid, "reqid should be same")
+  t.same(obj.msgType, constants.TIME_RANGE_REQUEST, "deserialized msg type should be channel time range request")
+  t.equal(obj.timeStart, timeStart, "timeStart should be same")
+  t.equal(obj.timeEnd, timeEnd, "timeEnd should be same")
+  t.equal(obj.limit, limit, "limit should be same")
+  t.equal(obj.channel, channel, "channel should be same")
+  t.equal(obj.ttl, ttl - 1, "ttl should be one less than originally")
+  t.end()
+})
+
+test("5: channel state request", t => {
   const reqid = crypto.generateReqID()
   const channel = "default"
   const ttl = 3
@@ -149,7 +202,27 @@ test("4: channel state request", t => {
   t.end()
 })
 
-test("5: channel list request", t => {
+test("5: channel state request, decrement ttl", t => {
+  const reqid = crypto.generateReqID()
+  const channel = "default"
+  const ttl = 3
+  const updates = 100
+  const limit = 20
+
+  const buf = CHANNEL_STATE_REQUEST.create(reqid, ttl, channel, limit, updates)
+  const newBuf = CHANNEL_STATE_REQUEST.decrementTTL(buf)
+  t.same(cable.peek(newBuf), constants.CHANNEL_STATE_REQUEST, "msg type should be channel state request")
+  const obj = CHANNEL_STATE_REQUEST.toJSON(newBuf)
+  t.same(obj.reqid, reqid, "reqid should be same")
+  t.same(obj.msgType, constants.CHANNEL_STATE_REQUEST, "deserialized msg type should be channel state request")
+  t.equal(obj.channel, channel, "channel should be same")
+  t.equal(obj.ttl, ttl - 1, "ttl should be one less than originally")
+  t.equal(obj.limit, limit, "limit should be same")
+  t.equal(obj.updates, updates, "updates should be same")
+  t.end()
+})
+
+test("6: channel list request", t => {
   const reqid = crypto.generateReqID()
   const ttl = 4
   const limit = 20
@@ -163,6 +236,23 @@ test("5: channel list request", t => {
   t.equal(obj.limit, limit, "limit should be same")
   t.end()
 })
+
+test("6: channel list request, decrement ttl", t => {
+  const reqid = crypto.generateReqID()
+  const ttl = 4
+  const limit = 20
+
+  const buf = CHANNEL_LIST_REQUEST.create(reqid, ttl, limit)
+  const newBuf = CHANNEL_LIST_REQUEST.decrementTTL(buf)
+  const obj = CHANNEL_LIST_REQUEST.toJSON(newBuf)
+  t.same(cable.peek(newBuf), constants.CHANNEL_LIST_REQUEST, "msg type should be channel list request")
+  t.same(obj.reqid, reqid, "reqid should be same")
+  t.same(obj.msgType, constants.CHANNEL_LIST_REQUEST, "deserialized msg type should be channel list request")
+  t.equal(obj.ttl, ttl - 1, "ttl should be one smaller than originally")
+  t.equal(obj.limit, limit, "limit should be same")
+  t.end()
+})
+
 
 test("0: post/text", t => {
   const keypair = crypto.generateKeypair()

@@ -211,6 +211,24 @@ class HASH_REQUEST {
 
     return { msgLen, msgType, reqid, ttl, hashes }
   }
+
+  static decrementTTL(buf) {
+    let offset = 0
+    // 1. msgLen
+    decodeVarintSlice(buf, 0)
+    offset += varint.decode.bytes
+    const msgLenOffset = offset
+    // 2. msgType
+    const msgType = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    if (msgType !== constants.HASH_REQUEST) {
+      throw new Error("decoded msgType is not of expected type (constants.HASH_REQUEST)")
+    }
+    // 3. reqid
+    offset += constants.REQID_SIZE
+    // we now have everything needed to modify the ttl
+    return insertNewTTL(buf, msgLenOffset, offset)
+  }
 }
 
 class CANCEL_REQUEST {
@@ -326,6 +344,24 @@ class TIME_RANGE_REQUEST {
 
     return { msgLen, msgType, reqid, ttl, channel, timeStart, timeEnd, limit }
   }
+
+  static decrementTTL(buf) {
+    let offset = 0
+    // 1. msgLen
+    decodeVarintSlice(buf, 0)
+    offset += varint.decode.bytes
+    const msgLenOffset = offset
+    // 2. msgType
+    const msgType = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    if (msgType !== constants.TIME_RANGE_REQUEST) {
+      return new Error(`"decoded msgType (${msgType}) is not of expected type (constants.TIME_RANGE_REQUEST)`)
+    }
+    // 3. reqid
+    offset += constants.REQID_SIZE
+    // we now have everything needed to modify the ttl
+    return insertNewTTL(buf, msgLenOffset, offset)
+  }
 }
 
 class CHANNEL_STATE_REQUEST {
@@ -394,6 +430,24 @@ class CHANNEL_STATE_REQUEST {
 
     return { msgLen, msgType, reqid, ttl, channel, limit, updates }
   }
+
+  static decrementTTL(buf) {
+    let offset = 0
+    // 1. msgLen
+    decodeVarintSlice(buf, 0)
+    offset += varint.decode.bytes
+    const msgLenOffset = offset
+    // 2. msgType
+    const msgType = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    if (msgType !== constants.CHANNEL_STATE_REQUEST) {
+      return new Error(`"decoded msgType (${msgType}) is not of expected type (constants.CHANNEL_STATE_REQUEST)`)
+    }
+    // 3. reqid
+    offset += constants.REQID_SIZE
+    // we now have everything needed to modify the ttl
+    return insertNewTTL(buf, msgLenOffset, offset)
+  }
 }
 
 class CHANNEL_LIST_REQUEST {
@@ -444,6 +498,25 @@ class CHANNEL_LIST_REQUEST {
     offset += varint.decode.bytes
 
     return { msgLen, msgType, reqid, ttl, limit }
+  }
+
+  static decrementTTL(buf) {
+    let offset = 0
+    // 1. msgLen
+    decodeVarintSlice(buf, 0)
+    offset += varint.decode.bytes
+    const msgLenOffset = offset
+    // 2. msgType
+    const msgType = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    if (msgType !== constants.CHANNEL_LIST_REQUEST) {
+      return new Error(`"decoded msgType (${msgType}) is not of expected type (constants.CHANNEL_LIST_REQUEST)`)
+    }
+    // 3. reqid
+    offset += constants.REQID_SIZE
+    
+    // we now have everything needed to modify the ttl
+    return insertNewTTL(buf, msgLenOffset, offset)
   }
 }
 
@@ -942,6 +1015,21 @@ function peekPost (buf) {
   // decode msg len, and discard
   const offset = constants.PUBLICKEY_SIZE + constants.SIGNATURE_SIZE + constants.HASH_SIZE
   return decodeVarintSlice(buf, offset)
+}
+
+function insertNewTTL(buf, msgLenOffset, offset) {
+    // get ttl
+    const beforeTTL = buf.subarray(msgLenOffset, offset)
+    const ttl = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    const afterTTL = buf.subarray(offset)
+
+    // decrement ttl
+    const newTTL = ttl - 1
+    if (newTTL < 0) { throw new Error("ttl negative") }
+
+    const newBuf = b4a.concat([beforeTTL, encodeVarintBuffer(newTTL), afterTTL])
+    return prependMsgLen(newBuf)
 }
 
 function prependMsgLen (buf) {
