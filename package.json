@@ -4,13 +4,19 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "$(npm bin)/tape test/*.js | $(npm bin)/tap-spec",
+    "bail": "$(npm bin)/tape test/*.js | $(npm bin)/tap-bail | $(npm bin)/tap-spec "
   },
   "author": "cabal-club",
   "license": "AGPL-3.0-or-later",
   "dependencies": {
-    "b4a": "^1.6.1",
-    "sodium-universal": "^3.1.0",
-    "varint": "^6.0.0"
+    "b4a": "1.6.1",
+    "sodium-universal": "3.1.0",
+    "tap-bail": "^1.0.0",
+    "tap-spec": "^5.0.0",
+    "varint": "6.0.0"
+  },
+  "devDependencies": {
+    "tape": "^5.6.3"
   }
 }
