@@ -213,21 +213,7 @@ class HASH_REQUEST {
   }
 
   static decrementTTL(buf) {
-    let offset = 0
-    // 1. msgLen
-    decodeVarintSlice(buf, 0)
-    offset += varint.decode.bytes
-    const msgLenOffset = offset
-    // 2. msgType
-    const msgType = decodeVarintSlice(buf, offset)
-    offset += varint.decode.bytes
-    if (msgType !== constants.HASH_REQUEST) {
-      throw new Error("decoded msgType is not of expected type (constants.HASH_REQUEST)")
-    }
-    // 3. reqid
-    offset += constants.REQID_SIZE
-    // we now have everything needed to modify the ttl
-    return insertNewTTL(buf, msgLenOffset, offset)
+    return insertNewTTL(buf, constants.HASH_REQUEST)
   }
 }
 
@@ -346,21 +332,7 @@ class TIME_RANGE_REQUEST {
   }
 
   static decrementTTL(buf) {
-    let offset = 0
-    // 1. msgLen
-    decodeVarintSlice(buf, 0)
-    offset += varint.decode.bytes
-    const msgLenOffset = offset
-    // 2. msgType
-    const msgType = decodeVarintSlice(buf, offset)
-    offset += varint.decode.bytes
-    if (msgType !== constants.TIME_RANGE_REQUEST) {
-      return new Error(`"decoded msgType (${msgType}) is not of expected type (constants.TIME_RANGE_REQUEST)`)
-    }
-    // 3. reqid
-    offset += constants.REQID_SIZE
-    // we now have everything needed to modify the ttl
-    return insertNewTTL(buf, msgLenOffset, offset)
+    return insertNewTTL(buf, constants.TIME_RANGE_REQUEST)
   }
 }
 
@@ -432,21 +404,7 @@ class CHANNEL_STATE_REQUEST {
   }
 
   static decrementTTL(buf) {
-    let offset = 0
-    // 1. msgLen
-    decodeVarintSlice(buf, 0)
-    offset += varint.decode.bytes
-    const msgLenOffset = offset
-    // 2. msgType
-    const msgType = decodeVarintSlice(buf, offset)
-    offset += varint.decode.bytes
-    if (msgType !== constants.CHANNEL_STATE_REQUEST) {
-      return new Error(`"decoded msgType (${msgType}) is not of expected type (constants.CHANNEL_STATE_REQUEST)`)
-    }
-    // 3. reqid
-    offset += constants.REQID_SIZE
-    // we now have everything needed to modify the ttl
-    return insertNewTTL(buf, msgLenOffset, offset)
+    return insertNewTTL(buf, constants.CHANNEL_STATE_REQUEST)
   }
 }
 
@@ -501,22 +459,7 @@ class CHANNEL_LIST_REQUEST {
   }
 
   static decrementTTL(buf) {
-    let offset = 0
-    // 1. msgLen
-    decodeVarintSlice(buf, 0)
-    offset += varint.decode.bytes
-    const msgLenOffset = offset
-    // 2. msgType
-    const msgType = decodeVarintSlice(buf, offset)
-    offset += varint.decode.bytes
-    if (msgType !== constants.CHANNEL_LIST_REQUEST) {
-      return new Error(`"decoded msgType (${msgType}) is not of expected type (constants.CHANNEL_LIST_REQUEST)`)
-    }
-    // 3. reqid
-    offset += constants.REQID_SIZE
-    
-    // we now have everything needed to modify the ttl
-    return insertNewTTL(buf, msgLenOffset, offset)
+    return insertNewTTL(buf, constants.CHANNEL_LIST_REQUEST)
   }
 }
 
@@ -1017,7 +960,20 @@ function peekPost (buf) {
   return decodeVarintSlice(buf, offset)
 }
 
-function insertNewTTL(buf, msgLenOffset, offset) {
+function insertNewTTL(buf, expectedType) {
+    let offset = 0
+    // 1. msgLen
+    decodeVarintSlice(buf, 0)
+    offset += varint.decode.bytes
+    const msgLenOffset = offset
+    // 2. msgType
+    const msgType = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    if (msgType !== expectedType) {
+      throw new Error(`decoded msgType is not of expected type (expected ${expectedType}, was ${msgType})`)
+    }
+    // 3. reqid
+    offset += constants.REQID_SIZE
     // get ttl
     const beforeTTL = buf.subarray(msgLenOffset, offset)
     const ttl = decodeVarintSlice(buf, offset)
