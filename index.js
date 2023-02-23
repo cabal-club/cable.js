@@ -960,6 +960,34 @@ function peekPost (buf) {
   return decodeVarintSlice(buf, offset)
 }
 
+function parsePost (buf) {
+  const postType = peekPost(buf)
+  let obj
+  switch (postType) {
+    case constants.TEXT_POST:
+      obj = TEXT_POST.toJSON(buf)
+      break
+    case constants.DELETE_POST:
+      obj = DELETE_POST.toJSON(buf)
+      break
+    case constants.INFO_POST:
+      obj = INFO_POST.toJSON(buf)
+      break
+    case constants.TOPIC_POST:
+      obj = TOPIC_POST.toJSON(buf)
+      break
+    case constants.JOIN_POST:
+      obj = JOIN_POST.toJSON(buf)
+      break
+    case constants.LEAVE_POST:
+      obj = LEAVE_POST.toJSON(buf)
+      break
+    default:
+      throw new Error(`parse post: unknown post type (${postType})`)
+  }
+  return obj
+}
+
 function insertNewTTL(buf, expectedType) {
     let offset = 0
     // 1. msgLen
@@ -1083,5 +1111,6 @@ module.exports = {
   LEAVE_POST,
 
   peek,
-  peekPost
+  peekPost,
+  parsePost,
 }
