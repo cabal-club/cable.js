@@ -8,6 +8,7 @@ const CANCEL_REQUEST = cable.CANCEL_REQUEST
 const HASH_REQUEST = cable.HASH_REQUEST
 const DATA_RESPONSE = cable.DATA_RESPONSE
 const HASH_RESPONSE = cable.HASH_RESPONSE
+const CHANNEL_LIST_RESPONSE = cable.CHANNEL_LIST_RESPONSE
 const TIME_RANGE_REQUEST = cable.TIME_RANGE_REQUEST
 const CHANNEL_STATE_REQUEST = cable.CHANNEL_STATE_REQUEST
 const CHANNEL_LIST_REQUEST = cable.CHANNEL_LIST_REQUEST
@@ -95,6 +96,41 @@ test("1: data response - wrong parameters", t => {
   // number of arguments is incorrect
   t.throws(() => {
     const buf = DATA_RESPONSE.create(crypto.generateReqID())
+  },  errorPattern, "should error when missing argument")
+  t.end()
+})
+
+test("7: channel list response", t => {
+  const keypair = crypto.generateKeypair()
+  const link = generateFakeHashes(1)[0]
+  const reqid = crypto.generateReqID()
+  const channels = ["a", "b", "cc"]
+
+  const buf = CHANNEL_LIST_RESPONSE.create(reqid, channels)
+  t.equal(cable.peek(buf), constants.CHANNEL_LIST_RESPONSE, "message type should be channel list response")
+  const obj = CHANNEL_LIST_RESPONSE.toJSON(buf)
+  t.equal(obj.msgType, constants.CHANNEL_LIST_RESPONSE, "deserialized message type should also be channel list response")
+  t.same(obj.reqid, reqid, "reqid should be same")
+  t.deepEqual(obj.channels, channels, "decoded payload should be same as input")
+  t.end()
+})
+
+test("7: channel list response - wrong parameters", t => {
+  const keypair = crypto.generateKeypair()
+  const link = generateFakeHashes(1)[0]
+  const channels = ["a", "b", "cc"]
+  const reqid = crypto.generateReqID()
+  // reqid is incorrect
+  t.throws(() => {
+    const buf = CHANNEL_LIST_RESPONSE.create("reqid", channels)
+  }, errorPattern,"should error when passed faulty type for reqid")
+  // payload is incorrect
+  t.throws(() => {
+    const buf = CHANNEL_LIST_RESPONSE.create(reqid, "")
+  },  errorPattern, "should error when passed faulty type for data")
+  // number of arguments is incorrect
+  t.throws(() => {
+    const buf = CHANNEL_LIST_RESPONSE.create(crypto.generateReqID())
   },  errorPattern, "should error when missing argument")
   t.end()
 })

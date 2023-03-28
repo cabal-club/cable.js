@@ -26,6 +26,8 @@ POST TYPES
 const HASH_RESPONSE = 0 
 /* 1. data response */
 const DATA_RESPONSE = 1 
+// 7. channel list response
+const CHANNEL_LIST_RESPONSE = 7
 
 /* Request types */
 // 2. request by hash
@@ -60,6 +62,7 @@ const SIGNATURE_SIZE = sodium.crypto_sign_BYTES
 module.exports = {
   HASH_RESPONSE,
   DATA_RESPONSE,
+  CHANNEL_LIST_RESPONSE,
 
   HASH_REQUEST,
   CANCEL_REQUEST,

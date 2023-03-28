@@ -17,6 +17,7 @@ const crypto = require("./cryptography.js")
 // would like to abstract away `offset += varint.decode.bytes` in case we swap library / opt for self-authored standard
 
 const HASHES_EXPECTED = new Error("expected hashes to contain an array of hash-sized buffers")
+const STRINGS_EXPECTED = new Error("expected channels to contain an array of strings")
 function bufferExpected (param, size) {
   return new Error(`expected ${param} to be a buffer of size ${size}`)
 }
@@ -456,6 +457,71 @@ class CHANNEL_LIST_REQUEST {
     offset += varint.decode.bytes
 
     return { msgLen, msgType, reqid, ttl, limit }
+  }
+
+  static decrementTTL(buf) {
+    return insertNewTTL(buf, constants.CHANNEL_LIST_REQUEST)
+  }
+}
+
+class CHANNEL_LIST_RESPONSE {
+  static create(reqid, channels) {
+    if (arguments.length !== 2) { throw wrongNumberArguments(2, arguments.length, "create(reqid, channels)") }
+    if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
+    if (!isArrayString(channels)) { throw STRINGS_EXPECTED }
+
+    // allocate default-sized buffer
+    let frame = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
+    let offset = 0
+    // 1. write message type
+    offset += writeVarint(constants.CHANNEL_LIST_RESPONSE, frame, offset)
+    // 2. write reqid
+    offset += reqid.copy(frame, offset)
+    // 3. write channels
+    channels.forEach(channel => {
+      offset += writeVarint(channel.length, frame, offset)
+      offset += b4a.from(channel).copy(frame, offset)
+    })
+    // resize buffer, since we have written everything except msglen
+    frame = frame.subarray(0, offset)
+    return prependMsgLen(frame)
+  }
+  // takes a cablegram buffer and returns the json object: 
+  // { msgLen, msgType, reqid, channels }
+  static toJSON(buf) {
+    let offset = 0
+    let msgLenBytes 
+    // 1. get msgLen
+    const msgLen = decodeVarintSlice(buf, 0)
+    offset += varint.decode.bytes
+    msgLenBytes = varint.decode.bytes
+    if (!isBufferSize(buf.subarray(offset), msgLen)) { throw bufferExpected("remaining buf", msgLen) }
+    // 2. get msgType
+    const msgType = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    if (msgType !== constants.CHANNEL_LIST_RESPONSE) {
+      return new Error(`"decoded msgType (${msgType}) is not of expected type (constants.CHANNEL_LIST_RESPONSE)`)
+    }
+    // 3. get reqid
+    const reqid = buf.subarray(offset, offset+constants.REQID_SIZE)
+    offset += constants.REQID_SIZE
+    if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
+    // 4. get channels
+    const channels = []
+    // msgLen tells us the number of bytes in the remaining cablegram i.e. *excluding* msgLen, 
+    // so we need to account for that by adding msgLenBytes
+    let remaining = msgLen - offset + msgLenBytes
+    while (remaining > 0) {
+    // get channel size
+      const channelLen = decodeVarintSlice(buf, offset)
+      offset += varint.decode.bytes
+      // 5. use dataLen to slice out the hashes
+      channels.push(buf.subarray(offset, offset + channelLen).toString())
+      offset += channelLen
+      remaining = msgLen - offset + msgLenBytes
+    }
+
+    return { msgLen, msgType, reqid, channels }
   }
 
   static decrementTTL(buf) {
@@ -953,9 +1019,19 @@ function peek (buf) {
   return decodeVarintSlice(buf, offset)
 }
 
+function peekReqid (buf) {
+  // decode msg len, and discard
+  decodeVarintSlice(buf, 0)
+  let offset = varint.decode.bytes
+  // decode msg type and discard
+  decodeVarintSlice(buf, offset)
+  offset += varint.decode.bytes
+  // read & return reqid
+  return buf.subarray(offset, offset+constants.REQID_SIZE)
+}
+
 // peek a buffer containing a cable post and return its post type
 function peekPost (buf) {
-  // decode msg len, and discard
   const offset = constants.PUBLICKEY_SIZE + constants.SIGNATURE_SIZE + constants.HASH_SIZE
   return decodeVarintSlice(buf, offset)
 }
@@ -981,6 +1057,41 @@ function parsePost (buf) {
       break
     case constants.LEAVE_POST:
       obj = LEAVE_POST.toJSON(buf)
+      break
+    default:
+      throw new Error(`parse post: unknown post type (${postType})`)
+  }
+  return obj
+}
+
+// a message is either a request or a response; not a post (for posts, see parsePost)
+function parseMessage (buf) {
+  const msgType = peek(buf)
+  let obj
+  switch (msgType) {
+    case constants.HASH_RESPONSE:
+      obj = HASH_RESPONSE.toJSON(buf)
+      break
+    case constants.DATA_RESPONSE:
+      obj = DATA_RESPONSE.toJSON(buf)
+      break
+    case constants.HASH_REQUEST:
+      obj = HASH_REQUEST.toJSON(buf)
+      break
+    case constants.CANCEL_REQUEST:
+      obj = CANCEL_REQUEST.toJSON(buf)
+      break
+    case constants.TIME_RANGE_REQUEST:
+      obj = TIME_RANGE_REQUEST.toJSON(buf)
+      break
+    case constants.CHANNEL_STATE_REQUEST:
+      obj = CHANNEL_STATE_REQUEST.toJSON(buf)
+      break
+    case constants.CHANNEL_LIST_REQUEST:
+      obj = CHANNEL_LIST_REQUEST.toJSON(buf)
+      break
+    case constants.CHANNEL_LIST_RESPONSE:
+      obj = CHANNEL_LIST_RESPONSE.toJSON(buf)
       break
     default:
       throw new Error(`parse post: unknown post type (${postType})`)
@@ -1069,6 +1180,18 @@ function isArrayData (arr) {
   return false
 }
 
+function isArrayString (arr) {
+  if (Array.isArray(arr)) {
+    for (let i = 0; i < arr.length; i++) {
+      if (typeof arr[i] !== "string") {
+        return false
+      }
+    }
+    return true
+  }
+  return false
+}
+
 function isArrayHashes (arr) {
   if (Array.isArray(arr)) {
     for (let i = 0; i < arr.length; i++) {
@@ -1097,6 +1220,8 @@ function writeVarint (n, buf, offset) {
 module.exports = { 
   HASH_RESPONSE, 
   DATA_RESPONSE, 
+  CHANNEL_LIST_RESPONSE,
+
   HASH_REQUEST, 
   CANCEL_REQUEST, 
   TIME_RANGE_REQUEST, 
@@ -1111,6 +1236,8 @@ module.exports = {
   LEAVE_POST,
 
   peek,
+  peekReqid,
   peekPost,
   parsePost,
+  parseMessage
 }
