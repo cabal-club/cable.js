@@ -410,10 +410,11 @@ class CHANNEL_STATE_REQUEST {
 }
 
 class CHANNEL_LIST_REQUEST {
-  static create(reqid, ttl, limit) {
-    if (arguments.length !== 3) { throw wrongNumberArguments(3, arguments.length, "create(reqid, ttl, limit)") }
+  static create(reqid, ttl, argOffset, limit) {
+    if (arguments.length !== 4) { throw wrongNumberArguments(4, arguments.length, "create(reqid, ttl, offset, limit)") }
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
     if (!isInteger(ttl)) { throw integerExpected("ttl") }
+    if (!isInteger(argOffset)) { throw integerExpected("offset") }
     if (!isInteger(limit)) { throw integerExpected("limit") }
 
     // allocate default-sized buffer
@@ -425,7 +426,9 @@ class CHANNEL_LIST_REQUEST {
     offset += reqid.copy(frame, offset)
     // 3. write ttl
     offset += writeVarint(ttl, frame, offset)
-    // 4. write limit 
+    // 4. write offset 
+    offset += writeVarint(argOffset, frame, offset)
+    // 5. write limit 
     offset += writeVarint(limit, frame, offset)
     // resize buffer, since we have written everything except msglen
     frame = frame.subarray(0, offset)
@@ -452,11 +455,14 @@ class CHANNEL_LIST_REQUEST {
     // 4. get ttl
     const ttl = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    // 5. get limit
+    // 5. get offset
+    const argOffset = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 6. get limit
     const limit = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
 
-    return { msgLen, msgType, reqid, ttl, limit }
+    return { msgLen, msgType, reqid, ttl, offset: argOffset, limit }
   }
 
   static decrementTTL(buf) {

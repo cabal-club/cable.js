@@ -262,13 +262,15 @@ test("6: channel list request", t => {
   const reqid = crypto.generateReqID()
   const ttl = 4
   const limit = 20
+  const offset = 0
 
-  const buf = CHANNEL_LIST_REQUEST.create(reqid, ttl, limit)
+  const buf = CHANNEL_LIST_REQUEST.create(reqid, ttl, offset, limit)
   const obj = CHANNEL_LIST_REQUEST.toJSON(buf)
   t.same(cable.peek(buf), constants.CHANNEL_LIST_REQUEST, "msg type should be channel list request")
   t.same(obj.reqid, reqid, "reqid should be same")
   t.same(obj.msgType, constants.CHANNEL_LIST_REQUEST, "deserialized msg type should be channel list request")
   t.equal(obj.ttl, ttl, "ttl should be same")
+  t.equal(obj.offset, offset, "offset should be same")
   t.equal(obj.limit, limit, "limit should be same")
   t.end()
 })
@@ -277,14 +279,16 @@ test("6: channel list request, decrement ttl", t => {
   const reqid = crypto.generateReqID()
   const ttl = 4
   const limit = 20
+  const offset = 0
 
-  const buf = CHANNEL_LIST_REQUEST.create(reqid, ttl, limit)
+  const buf = CHANNEL_LIST_REQUEST.create(reqid, ttl, offset, limit)
   const newBuf = CHANNEL_LIST_REQUEST.decrementTTL(buf)
   const obj = CHANNEL_LIST_REQUEST.toJSON(newBuf)
   t.same(cable.peek(newBuf), constants.CHANNEL_LIST_REQUEST, "msg type should be channel list request")
   t.same(obj.reqid, reqid, "reqid should be same")
   t.same(obj.msgType, constants.CHANNEL_LIST_REQUEST, "deserialized msg type should be channel list request")
   t.equal(obj.ttl, ttl - 1, "ttl should be one smaller than originally")
+  t.equal(obj.offset, offset, "offset should be same")
   t.equal(obj.limit, limit, "limit should be same")
   t.end()
 })
@@ -437,6 +441,7 @@ test("cablegrams with same input should be identical", t => {
   const limit = 20
   const updates = 99
   const channel = "test-channel"
+  const offset = 0
 
   const grams = []
 
@@ -445,7 +450,7 @@ test("cablegrams with same input should be identical", t => {
   grams.push(["cancel request", CANCEL_REQUEST.create(reqid), CANCEL_REQUEST.create(reqid)])
   grams.push(["channel time range request", TIME_RANGE_REQUEST.create(reqid, ttl, channel, timeStart, timeEnd, limit), TIME_RANGE_REQUEST.create(reqid, ttl, channel, timeStart, timeEnd, limit)])
   grams.push(["channel state request", CHANNEL_STATE_REQUEST.create(reqid, ttl, channel, limit, updates), CHANNEL_STATE_REQUEST.create(reqid, ttl, channel, limit, updates)])
-  grams.push(["channel list request", CHANNEL_LIST_REQUEST.create(reqid, ttl, limit), CHANNEL_LIST_REQUEST.create(reqid, ttl, limit)])
+  grams.push(["channel list request", CHANNEL_LIST_REQUEST.create(reqid, ttl, offset, limit), CHANNEL_LIST_REQUEST.create(reqid, ttl, offset, limit)])
 
   grams.forEach(gram => {
     t.deepEqual(gram[1], gram[2], `${gram[0]} cablegram byte sequence should be identical for same inputs`)
