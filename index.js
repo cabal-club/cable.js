@@ -16,6 +16,7 @@ const crypto = require("./cryptography.js")
 // TODO (2023-01-11): 
 // would like to abstract away `offset += varint.decode.bytes` in case we swap library / opt for self-authored standard
 
+const LINKS_EXPECTED = new Error("expected links to contain an array of hash-sized buffers")
 const HASHES_EXPECTED = new Error("expected hashes to contain an array of hash-sized buffers")
 const STRINGS_EXPECTED = new Error("expected channels to contain an array of strings")
 function bufferExpected (param, size) {
@@ -87,7 +88,7 @@ class HASH_RESPONSE {
   }
 }
 
-class DATA_RESPONSE {
+class POST_RESPONSE {
   static create(reqid, arrdata) {
     if (arguments.length !== 2) { throw wrongNumberArguments(2, arguments.length, "create(reqid, arrdata)") }
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
@@ -96,7 +97,7 @@ class DATA_RESPONSE {
     let frame = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
     let offset = 0
     // 1. write message type
-    offset += writeVarint(constants.DATA_RESPONSE, frame, offset)
+    offset += writeVarint(constants.POST_RESPONSE, frame, offset)
     // 2. write reqid
     offset += reqid.copy(frame, offset)
     // 3. exhaust array of data
@@ -106,6 +107,8 @@ class DATA_RESPONSE {
       // 3.2 then write the data itself
       offset += arrdata[i].copy(frame, offset)
     }
+    // 3.3 finally: write dataLen = 0 to signal end of data
+    offset += writeVarint(0, frame, offset)
     // resize buffer, since we have written everything except msglen
     frame = frame.subarray(0, offset)
     return prependMsgLen(frame)
@@ -123,8 +126,8 @@ class DATA_RESPONSE {
     // 2. get msgType
     const msgType = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    if (msgType !== constants.DATA_RESPONSE) {
-      throw new Error("decoded msgType is not of expected type (constants.DATA_RESPONSE)")
+    if (msgType !== constants.POST_RESPONSE) {
+      throw new Error("decoded msgType is not of expected type (constants.POST_RESPONSE)")
     }
     // 3. get reqid
     const reqid = buf.subarray(offset, offset+constants.REQID_SIZE)
@@ -139,6 +142,8 @@ class DATA_RESPONSE {
     while (remaining > 0) {
       const dataLen = decodeVarintSlice(buf, offset)
       offset += varint.decode.bytes
+      // if dataLen === 0 then we have no more data
+      if (dataLen === 0) { break }
       // 5. use dataLen to slice out the hashes
       data.push(buf.subarray(offset, offset + dataLen))
       offset += dataLen
@@ -150,7 +155,7 @@ class DATA_RESPONSE {
   }
 }
 
-class HASH_REQUEST {
+class POST_REQUEST {
   // constructs a cablegram buffer using the incoming arguments
   static create(reqid, ttl, hashes) {
     if (arguments.length !== 3) { throw wrongNumberArguments(3, arguments.length, "create(reqid, ttl, hashes)") }
@@ -162,7 +167,7 @@ class HASH_REQUEST {
     let frame = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
     let offset = 0
     // 1. write message type
-    offset += writeVarint(constants.HASH_REQUEST, frame, offset)
+    offset += writeVarint(constants.POST_REQUEST, frame, offset)
     // 2. write reqid
     offset += reqid.copy(frame, offset)
     // 3. write ttl
@@ -189,8 +194,8 @@ class HASH_REQUEST {
     // 2. get msgType
     const msgType = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    if (msgType !== constants.HASH_REQUEST) {
-      throw new Error("decoded msgType is not of expected type (constants.HASH_REQUEST)")
+    if (msgType !== constants.POST_REQUEST) {
+      throw new Error("decoded msgType is not of expected type (constants.POST_REQUEST)")
     }
     // 3. get reqid
     const reqid = buf.subarray(offset, offset+constants.REQID_SIZE)
@@ -214,15 +219,16 @@ class HASH_REQUEST {
   }
 
   static decrementTTL(buf) {
-    return insertNewTTL(buf, constants.HASH_REQUEST)
+    return insertNewTTL(buf, constants.POST_REQUEST)
   }
 }
 
 class CANCEL_REQUEST {
   // constructs a cablegram buffer using the incoming arguments
-  static create(reqid) {
-    if (arguments.length !== 1) { throw wrongNumberArguments(1, arguments.length, "create(reqid)") }
+  static create(reqid, cancelid) {
+    if (arguments.length !== 2) { throw wrongNumberArguments(2, arguments.length, "create(reqid, cancelid)") }
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
+    if (!isBufferSize(cancelid, constants.REQID_SIZE)) { throw bufferExpected("cancelid", constants.REQID_SIZE) }
 
     // allocate default-sized buffer
     let frame = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
@@ -230,7 +236,9 @@ class CANCEL_REQUEST {
     // 1. write message type
     offset += writeVarint(constants.CANCEL_REQUEST, frame, offset)
     // 2. write reqid
-    offset += reqid.copy(frame, varint.encode.bytes)
+    offset += reqid.copy(frame, offset)
+    // 2. write cancelid
+    offset += cancelid.copy(frame, offset)
 
     // resize buffer, since we have written everything except msglen
     frame = frame.subarray(0, offset)
@@ -238,10 +246,10 @@ class CANCEL_REQUEST {
   }
 
   // takes a cablegram buffer and returns the json object: 
-  // { msgLen, msgType, reqid }
+  // { msgLen, msgType, reqid, cancelid }
   static toJSON(buf) {
     let offset = 0
-    // 1. get mshLen
+    // 1. get msgLen
     const msgLen = decodeVarintSlice(buf, 0)
     offset += varint.decode.bytes
     if (!isBufferSize(buf.subarray(offset), msgLen)) { throw bufferExpected("remaining buf", msgLen) }
@@ -254,8 +262,11 @@ class CANCEL_REQUEST {
     // 3. get reqid
     const reqid = buf.subarray(offset, offset+constants.REQID_SIZE)
     offset += constants.REQID_SIZE
+    // 4. get cancelid
+    const cancelid = buf.subarray(offset, offset+constants.REQID_SIZE)
+    offset += constants.REQID_SIZE
 
-    return { msgLen, msgType, reqid }
+    return { msgLen, msgType, reqid, cancelid }
   }
 }
 
@@ -485,9 +496,13 @@ class CHANNEL_LIST_RESPONSE {
     offset += reqid.copy(frame, offset)
     // 3. write channels
     channels.forEach(channel => {
+      // 3.1 write channelLen
       offset += writeVarint(channel.length, frame, offset)
+      // 3.2 write channel
       offset += b4a.from(channel).copy(frame, offset)
     })
+    // 3.3 finally: write a channelLen = 0 to signal end of channel data
+    offset += writeVarint(0, frame, offset)
     // resize buffer, since we have written everything except msglen
     frame = frame.subarray(0, offset)
     return prependMsgLen(frame)
@@ -521,6 +536,8 @@ class CHANNEL_LIST_RESPONSE {
     // get channel size
       const channelLen = decodeVarintSlice(buf, offset)
       offset += varint.decode.bytes
+      // if channelLen === 0 then we have no more channels in this response
+      if (channelLen === 0) { break }
       // 5. use dataLen to slice out the hashes
       channels.push(buf.subarray(offset, offset + channelLen).toString())
       offset += channelLen
@@ -536,11 +553,11 @@ class CHANNEL_LIST_RESPONSE {
 }
 
 class TEXT_POST {
-  static create(publicKey, secretKey, link, channel, timestamp, text) {
-    if (arguments.length !== 6) { throw wrongNumberArguments(6, arguments.length, "create(publicKey, secretKey, link, channel, timestamp, text)") }
+  static create(publicKey, secretKey, links, channel, timestamp, text) {
+    if (arguments.length !== 6) { throw wrongNumberArguments(6, arguments.length, "create(publicKey, secretKey, links, channel, timestamp, text)") }
     if (!isBufferSize(publicKey, constants.PUBLICKEY_SIZE)) { throw bufferExpected("publicKey", constants.PUBLICKEY_SIZE) }
     if (!isBufferSize(secretKey, constants.SECRETKEY_SIZE)) { throw bufferExpected("secretKey", constants.SECRETKEY_SIZE) }
-    if (!isBufferSize(link, constants.HASH_SIZE)) { throw bufferExpected("link", constants.HASH_SIZE) }
+    if (!isArrayHashes(links)) { throw LINKS_EXPECTED }
     if (!isString(channel)) { throw stringExpected("channel") }
     if (!isInteger(timestamp)) { throw integerExpected("timestamp") }
     if (!isString(text)) { throw stringExpected("text") }
@@ -551,19 +568,23 @@ class TEXT_POST {
     offset += publicKey.copy(buf, 0)
     // 2. make space for signature, which is done last of all.
     offset += constants.SIGNATURE_SIZE
-    // 3. write link, which is represents a hash i.e. a buffer
-    offset += link.copy(buf, offset)
-    // 4. write postType
+    // 3. write num_links, whose entries each represents a hash i.e. a buffer
+    offset += writeVarint(links.length, buf, offset)
+    // 4. write the links themselves
+    links.forEach(link => {
+      offset += link.copy(buf, offset)
+    })
+    // 5. write postType
     offset += writeVarint(constants.TEXT_POST, buf, offset)
-    // 5. write channelSize
+    // 6. write channelSize
     offset += writeVarint(channel.length, buf, offset)
-    // 6. write the channel
+    // 7. write the channel
     offset += b4a.from(channel).copy(buf, offset)
-    // 7. write timestamp
+    // 8. write timestamp
     offset += writeVarint(timestamp, buf, offset)
-    // 8. write textSize
+    // 9. write textSize
     offset += writeVarint(text.length, buf, offset)
-    // 9. write the text
+    // 10. write the text
     offset += b4a.from(text).copy(buf, offset)
 
     // everything has now been written, slice out the final message from the larger buffer
@@ -579,7 +600,7 @@ class TEXT_POST {
   }
 
   static toJSON(buf) {
-    // { publicKey, signature, link, postType, channel, timestamp, text }
+    // { publicKey, signature, links, postType, channel, timestamp, text }
     let offset = 0
     // 1. get publicKey
     const publicKey = buf.subarray(0, constants.PUBLICKEY_SIZE)
@@ -592,43 +613,51 @@ class TEXT_POST {
     if (!signatureCorrect) { 
       throw new Error("could not verify created signature using keypair publicKey + secretKey") 
     }
-    // 3. get link
-    const link = buf.subarray(offset, offset + constants.HASH_SIZE)
-    offset += constants.HASH_SIZE
-    // 4. get postType
+    // 3. get numLinks
+    const numLinks = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 4. use numLinks to slice out the links
+    let links = []
+    for (let i = 0; i < numLinks; i++) {
+      links.push(buf.subarray(offset, offset + constants.HASH_SIZE))
+      offset += constants.HASH_SIZE
+    }
+    if (!isArrayHashes(links)) { throw LINKS_EXPECTED }
+
+    // 5. get postType
     const postType = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
     if (postType !== constants.TEXT_POST) {
       return new Error(`"decoded postType (${postType}) is not of expected type (constants.TEXT_POST)`)
     }
-    // 5. get channelSize
+    // 6. get channelSize
     const channelSize = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    // 6. use channelSize to get channel
+    // 7. use channelSize to get channel
     const channel = buf.subarray(offset, offset + channelSize).toString()
     offset += channelSize
-    // 7. get timestamp
+    // 8. get timestamp
     const timestamp = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    // 8. get textSize
+    // 9. get textSize
     const textSize = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    // 9. use textSize to get text
+    // 10. use textSize to get text
     const text = buf.subarray(offset, offset + textSize).toString()
     offset += textSize
 
-    return { publicKey, signature, link, postType, channel, timestamp, text }
+    return { publicKey, signature, links, postType, channel, timestamp, text }
   }
 }
 
 class DELETE_POST {
-  static create(publicKey, secretKey, link, timestamp, hash) {
-    if (arguments.length !== 5) { throw wrongNumberArguments(5, arguments.length, "create(publicKey, secretKey, link, timestamp, hash)") }
+  static create(publicKey, secretKey, links, timestamp, hashes) {
+    if (arguments.length !== 5) { throw wrongNumberArguments(5, arguments.length, "create(publicKey, secretKey, links, timestamp, hash)") }
     if (!isBufferSize(publicKey, constants.PUBLICKEY_SIZE)) { throw bufferExpected("publicKey", constants.PUBLICKEY_SIZE) }
     if (!isBufferSize(secretKey, constants.SECRETKEY_SIZE)) { throw bufferExpected("secretKey", constants.SECRETKEY_SIZE) }
-    if (!isBufferSize(link, constants.HASH_SIZE)) { throw bufferExpected("link", constants.HASH_SIZE) }
+    if (!isArrayHashes(links)) { throw LINKS_EXPECTED }
     if (!isInteger(timestamp)) { throw integerExpected("timestamp") }
-    if (!isBufferSize(hash, constants.HASH_SIZE)) { throw bufferExpected("hash", constants.HASH_SIZE) }
+    if (!isArrayHashes(hashes)) { throw HASHES_EXPECTED }
     
     let offset = 0
     const buf = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
@@ -636,14 +665,22 @@ class DELETE_POST {
     offset += publicKey.copy(buf, 0)
     // 2. make space for signature, which is done last of all.
     offset += constants.SIGNATURE_SIZE
-    // 3. write link, which is represents a hash i.e. a buffer
-    offset += link.copy(buf, offset)
-    // 4. write postType
+    // 3. write num_links, whose entries each represents a hash i.e. a buffer
+    offset += writeVarint(links.length, buf, offset)
+    // 4. write the links themselves
+    links.forEach(link => {
+      offset += link.copy(buf, offset)
+    })
+    // 5. write postType
     offset += writeVarint(constants.DELETE_POST, buf, offset)
-    // 5. write timestamp
+    // 6. write timestamp
     offset += writeVarint(timestamp, buf, offset)
-    // 6. write hash, which represents the hash of the post we are requesting peers to delete
-    offset += hash.copy(buf, offset)
+    // 7. write num_deletions, which represents how many hashes we are requesting peers to delete
+    offset += writeVarint(hashes.length, buf, offset)
+    // 8. write the hashes themselves
+    hashes.forEach(hash => {
+      offset += hash.copy(buf, offset)
+    })
     
     // everything has now been written, slice out the final message from the larger buffer
     const message = buf.subarray(0, offset)
@@ -658,7 +695,7 @@ class DELETE_POST {
   }
 
   static toJSON(buf) {
-    // { publicKey, signature, link, postType, timestamp, hash }
+    // { publicKey, signature, links, postType, timestamp, hash }
     let offset = 0
     // 1. get publicKey
     const publicKey = buf.subarray(0, constants.PUBLICKEY_SIZE)
@@ -671,33 +708,46 @@ class DELETE_POST {
     if (!signatureCorrect) { 
       throw new Error("could not verify created signature using keypair publicKey + secretKey") 
     }
-    // 3. get link
-    const link = buf.subarray(offset, offset + constants.HASH_SIZE)
-    offset += constants.HASH_SIZE
-    // 4. get postType
+    // 3. get numLinks
+    const numLinks = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 4. use numLinks to slice out the links
+    let links = []
+    for (let i = 0; i < numLinks; i++) {
+      links.push(buf.subarray(offset, offset + constants.HASH_SIZE))
+      offset += constants.HASH_SIZE
+    }
+    if (!isArrayHashes(links)) { throw LINKS_EXPECTED }
+    // 5. get postType
     const postType = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
     if (postType !== constants.DELETE_POST) {
       return new Error(`"decoded postType (${postType}) is not of expected type (constants.DELETE_POST)`)
     }
-    // 5. get timestamp
+    // 6. get timestamp
     const timestamp = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    // 6. get hash
-    const hash = buf.subarray(offset, offset + constants.HASH_SIZE)
-    offset += constants.HASH_SIZE
+    // 7. get num_deletions
+    const numDeletions = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    let hashes = []
+    // 8. get the hashes
+    for (let i = 0; i < numDeletions; i++) {
+      hashes.push(buf.subarray(offset, offset + constants.HASH_SIZE))
+      offset += constants.HASH_SIZE
+    }
+    if (!isArrayHashes(hashes)) { throw HASHES_EXPECTED }
 
-    return { publicKey, signature, link, postType, timestamp, hash }
+    return { publicKey, signature, links, postType, timestamp, hashes }
   }
 }
   
-// intentionally left blank; will loop back to
 class INFO_POST {
-  static create(publicKey, secretKey, link, timestamp, key, value) {
-    if (arguments.length !== 6) { throw wrongNumberArguments(6, arguments.length, "create(publicKey, secretKey, link, timestamp, key, value)") }
+  static create(publicKey, secretKey, links, timestamp, key, value) {
+    if (arguments.length !== 6) { throw wrongNumberArguments(6, arguments.length, "create(publicKey, secretKey, links, timestamp, key, value)") }
     if (!isBufferSize(publicKey, constants.PUBLICKEY_SIZE)) { throw bufferExpected("publicKey", constants.PUBLICKEY_SIZE) }
     if (!isBufferSize(secretKey, constants.SECRETKEY_SIZE)) { throw bufferExpected("secretKey", constants.SECRETKEY_SIZE) }
-    if (!isBufferSize(link, constants.HASH_SIZE)) { throw bufferExpected("link", constants.HASH_SIZE) }
+    if (!isArrayHashes(links)) { throw LINKS_EXPECTED }
     if (!isInteger(timestamp)) { throw integerExpected("timestamp") }
     if (!isString(key)) { throw stringExpected("key") }
     if (!isString(value)) { throw stringExpected("value") }
@@ -708,19 +758,23 @@ class INFO_POST {
     offset += publicKey.copy(buf, 0)
     // 2. make space for signature, which is done last of all.
     offset += constants.SIGNATURE_SIZE
-    // 3. write link, which is represents a hash i.e. a buffer
-    offset += link.copy(buf, offset)
-    // 4. write postType
+    // 3. write num_links, whose entries each represents a hash i.e. a buffer
+    offset += writeVarint(links.length, buf, offset)
+    // 4. write the links themselves
+    links.forEach(link => {
+      offset += link.copy(buf, offset)
+    })
+    // 5. write postType
     offset += writeVarint(constants.INFO_POST, buf, offset)
-    // 7. write timestamp
+    // 6. write timestamp
     offset += writeVarint(timestamp, buf, offset)
-    // 5. write keySize
+    // 7. write keySize
     offset += writeVarint(key.length, buf, offset)
-    // 6. write the key
+    // 8. write the key
     offset += b4a.from(key).copy(buf, offset)
-    // 8. write valueSize
+    // 9. write valueSize
     offset += writeVarint(value.length, buf, offset)
-    // 9. write the value
+    // 10. write the value
     offset += b4a.from(value).copy(buf, offset)
     
     // everything has now been written, slice out the final message from the larger buffer
@@ -736,7 +790,7 @@ class INFO_POST {
   }
 
   static toJSON(buf) {
-    // { publicKey, signature, link, postType, timestamp, key, value }
+    // { publicKey, signature, links, postType, timestamp, key, value }
     let offset = 0
     // 1. get publicKey
     const publicKey = buf.subarray(0, constants.PUBLICKEY_SIZE)
@@ -749,42 +803,49 @@ class INFO_POST {
     if (!signatureCorrect) { 
       throw new Error("could not verify created signature using keypair publicKey + secretKey") 
     }
-    // 3. get link
-    const link = buf.subarray(offset, offset + constants.HASH_SIZE)
-    offset += constants.HASH_SIZE
-    // 4. get postType
+    // 3. get numLinks
+    const numLinks = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 4. use numLinks to slice out the links
+    let links = []
+    for (let i = 0; i < numLinks; i++) {
+      links.push(buf.subarray(offset, offset + constants.HASH_SIZE))
+      offset += constants.HASH_SIZE
+    }
+    if (!isArrayHashes(links)) { throw LINKS_EXPECTED }
+    // 5. get postType
     const postType = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
     if (postType !== constants.INFO_POST) {
       return new Error(`"decoded postType (${postType}) is not of expected type (constants.INFO_POST)`)
     }
-    // 5. get timestamp
+    // 6. get timestamp
     const timestamp = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    // 6. get keySize
+    // 7. get keySize
     const keySize = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    // 7. use keySize to get key
+    // 8. use keySize to get key
     const key = buf.subarray(offset, offset + keySize).toString()
     offset += keySize
-    // 8. get valueSize
+    // 9. get valueSize
     const valueSize = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    // 9. use valueSize to get value
+    // 10. use valueSize to get value
     const value = buf.subarray(offset, offset + valueSize).toString()
     offset += valueSize
 
-    return { publicKey, signature, link, postType, timestamp, key, value }
+    return { publicKey, signature, links, postType, timestamp, key, value }
   }
 }
 
 
 class TOPIC_POST {
-  static create(publicKey, secretKey, link, channel, timestamp, topic) {
-    if (arguments.length !== 6) { throw wrongNumberArguments(6, arguments.length, "create(publicKey, secretKey, link, channel, timestamp, topic)") }
+  static create(publicKey, secretKey, links, channel, timestamp, topic) {
+    if (arguments.length !== 6) { throw wrongNumberArguments(6, arguments.length, "create(publicKey, secretKey, links, channel, timestamp, topic)") }
     if (!isBufferSize(publicKey, constants.PUBLICKEY_SIZE)) { throw bufferExpected("publicKey", constants.PUBLICKEY_SIZE) }
     if (!isBufferSize(secretKey, constants.SECRETKEY_SIZE)) { throw bufferExpected("secretKey", constants.SECRETKEY_SIZE) }
-    if (!isBufferSize(link, constants.HASH_SIZE)) { throw bufferExpected("link", constants.HASH_SIZE) }
+    if (!isArrayHashes(links)) { throw LINKS_EXPECTED }
     if (!isString(channel)) { throw stringExpected("channel") }
     if (!isInteger(timestamp)) { throw integerExpected("timestamp") }
     if (!isString(topic)) { throw stringExpected("topic") }
@@ -795,19 +856,23 @@ class TOPIC_POST {
     offset += publicKey.copy(buf, 0)
     // 2. make space for signature, which is done last of all.
     offset += constants.SIGNATURE_SIZE
-    // 3. write link, which is represents a hash i.e. a buffer
-    offset += link.copy(buf, offset)
-    // 4. write postType
+    // 3. write num_links, whose entries each represents a hash i.e. a buffer
+    offset += writeVarint(links.length, buf, offset)
+    // 4. write the links themselves
+    links.forEach(link => {
+      offset += link.copy(buf, offset)
+    })
+    // 5. write postType
     offset += writeVarint(constants.TOPIC_POST, buf, offset)
-    // 5. write channelSize
+    // 6. write channelSize
     offset += writeVarint(channel.length, buf, offset)
-    // 6. write the channel
+    // 7. write the channel
     offset += b4a.from(channel).copy(buf, offset)
-    // 7. write timestamp
+    // 8. write timestamp
     offset += writeVarint(timestamp, buf, offset)
-    // 8. write topicSize
+    // 9. write topicSize
     offset += writeVarint(topic.length, buf, offset)
-    // 9. write the topic
+    // 10. write the topic
     offset += b4a.from(topic).copy(buf, offset)
     
     // everything has now been written, slice out the final message from the larger buffer
@@ -823,7 +888,7 @@ class TOPIC_POST {
   }
 
   static toJSON(buf) {
-    // { publicKey, signature, link, postType, channel, timestamp, topic }
+    // { publicKey, signature, links, postType, channel, timestamp, topic }
     let offset = 0
     // 1. get publicKey
     const publicKey = buf.subarray(0, constants.PUBLICKEY_SIZE)
@@ -836,41 +901,48 @@ class TOPIC_POST {
     if (!signatureCorrect) { 
       throw new Error("could not verify created signature using keypair publicKey + secretKey") 
     }
-    // 3. get link
-    const link = buf.subarray(offset, offset + constants.HASH_SIZE)
-    offset += constants.HASH_SIZE
-    // 4. get postType
+    // 3. get numLinks
+    const numLinks = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 4. use numLinks to slice out the links
+    let links = []
+    for (let i = 0; i < numLinks; i++) {
+      links.push(buf.subarray(offset, offset + constants.HASH_SIZE))
+      offset += constants.HASH_SIZE
+    }
+    if (!isArrayHashes(links)) { throw LINKS_EXPECTED }
+    // 5. get postType
     const postType = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
     if (postType !== constants.TOPIC_POST) {
       return new Error(`"decoded postType (${postType}) is not of expected type (constants.TOPIC_POST)`)
     }
-    // 5. get channelSize
+    // 6. get channelSize
     const channelSize = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    // 6. use channelSize to get channel
+    // 7. use channelSize to get channel
     const channel = buf.subarray(offset, offset + channelSize).toString()
     offset += channelSize
-    // 7. get timestamp
+    // 8. get timestamp
     const timestamp = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    // 8. get topicSize
+    // 9. get topicSize
     const topicSize = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    // 9. use topicSize to get topic
+    // 10. use topicSize to get topic
     const topic = buf.subarray(offset, offset + topicSize).toString()
     offset += topicSize
 
-    return { publicKey, signature, link, postType, channel, timestamp, topic }
+    return { publicKey, signature, links, postType, channel, timestamp, topic }
   }
 }
 
 class JOIN_POST {
-  static create(publicKey, secretKey, link, channel, timestamp) {
-    if (arguments.length !== 5) { throw wrongNumberArguments(5, arguments.length, "create(publicKey, secretKey, link, channel, timestamp)") }
+  static create(publicKey, secretKey, links, channel, timestamp) {
+    if (arguments.length !== 5) { throw wrongNumberArguments(5, arguments.length, "create(publicKey, secretKey, links, channel, timestamp)") }
     if (!isBufferSize(publicKey, constants.PUBLICKEY_SIZE)) { throw bufferExpected("publicKey", constants.PUBLICKEY_SIZE) }
     if (!isBufferSize(secretKey, constants.SECRETKEY_SIZE)) { throw bufferExpected("secretKey", constants.SECRETKEY_SIZE) }
-    if (!isBufferSize(link, constants.HASH_SIZE)) { throw bufferExpected("link", constants.HASH_SIZE) }
+    if (!isArrayHashes(links)) { throw LINKS_EXPECTED }
     if (!isString(channel)) { throw stringExpected("channel") }
     if (!isInteger(timestamp)) { throw integerExpected("timestamp") }
     
@@ -880,15 +952,19 @@ class JOIN_POST {
     offset += publicKey.copy(buf, 0)
     // 2. make space for signature, which is done last of all.
     offset += constants.SIGNATURE_SIZE
-    // 3. write link, which is represents a hash i.e. a buffer
-    offset += link.copy(buf, offset)
-    // 4. write postType
+    // 3. write num_links, whose entries each represents a hash i.e. a buffer
+    offset += writeVarint(links.length, buf, offset)
+    // 4. write the links themselves
+    links.forEach(link => {
+      offset += link.copy(buf, offset)
+    })
+    // 5. write postType
     offset += writeVarint(constants.JOIN_POST, buf, offset)
-    // 5. write channelSize
+    // 6. write channelSize
     offset += writeVarint(channel.length, buf, offset)
-    // 6. write the channel
+    // 7. write the channel
     offset += b4a.from(channel).copy(buf, offset)
-    // 7. write timestamp
+    // 8. write timestamp
     offset += writeVarint(timestamp, buf, offset)
     
     // everything has now been written, slice out the final message from the larger buffer
@@ -904,7 +980,7 @@ class JOIN_POST {
   }
 
   static toJSON(buf) {
-    // { publicKey, signature, link, postType, channel, timestamp }
+    // { publicKey, signature, links, postType, channel, timestamp }
     let offset = 0
     // 1. get publicKey
     const publicKey = buf.subarray(0, constants.PUBLICKEY_SIZE)
@@ -917,35 +993,42 @@ class JOIN_POST {
     if (!signatureCorrect) { 
       throw new Error("could not verify created signature using keypair publicKey + secretKey") 
     }
-    // 3. get link
-    const link = buf.subarray(offset, offset + constants.HASH_SIZE)
-    offset += constants.HASH_SIZE
-    // 4. get postType
+    // 3. get numLinks
+    const numLinks = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 4. use numLinks to slice out the links
+    let links = []
+    for (let i = 0; i < numLinks; i++) {
+      links.push(buf.subarray(offset, offset + constants.HASH_SIZE))
+      offset += constants.HASH_SIZE
+    }
+    if (!isArrayHashes(links)) { throw LINKS_EXPECTED }
+    // 5. get postType
     const postType = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
     if (postType !== constants.JOIN_POST) {
       return new Error(`"decoded postType (${postType}) is not of expected type (constants.JOIN_POST)`)
     }
-    // 5. get channelSize
+    // 6. get channelSize
     const channelSize = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    // 6. use channelSize to get channel
+    // 7. use channelSize to get channel
     const channel = buf.subarray(offset, offset + channelSize).toString()
     offset += channelSize
-    // 7. get timestamp
+    // 8. get timestamp
     const timestamp = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
 
-    return { publicKey, signature, link, postType, channel, timestamp }
+    return { publicKey, signature, links, postType, channel, timestamp }
   }
 }
 
 class LEAVE_POST {
-  static create(publicKey, secretKey, link, channel, timestamp) {
-    if (arguments.length !== 5) { throw wrongNumberArguments(5, arguments.length, "create(publicKey, secretKey, link, channel, timestamp)") }
+  static create(publicKey, secretKey, links, channel, timestamp) {
+    if (arguments.length !== 5) { throw wrongNumberArguments(5, arguments.length, "create(publicKey, secretKey, links, channel, timestamp)") }
     if (!isBufferSize(publicKey, constants.PUBLICKEY_SIZE)) { throw bufferExpected("publicKey", constants.PUBLICKEY_SIZE) }
     if (!isBufferSize(secretKey, constants.SECRETKEY_SIZE)) { throw bufferExpected("secretKey", constants.SECRETKEY_SIZE) }
-    if (!isBufferSize(link, constants.HASH_SIZE)) { throw bufferExpected("link", constants.HASH_SIZE) }
+    if (!isArrayHashes(links)) { throw LINKS_EXPECTED }
     if (!isString(channel)) { throw stringExpected("channel") }
     if (!isInteger(timestamp)) { throw integerExpected("timestamp") }
     
@@ -955,15 +1038,19 @@ class LEAVE_POST {
     offset += publicKey.copy(buf, 0)
     // 2. make space for signature, which is done last of all.
     offset += constants.SIGNATURE_SIZE
-    // 3. write link, which is represents a hash i.e. a buffer
-    offset += link.copy(buf, offset)
-    // 4. write postType
+    // 3. write num_links, whose entries each represents a hash i.e. a buffer
+    offset += writeVarint(links.length, buf, offset)
+    // 4. write the links themselves
+    links.forEach(link => {
+      offset += link.copy(buf, offset)
+    })
+    // 5. write postType
     offset += writeVarint(constants.LEAVE_POST, buf, offset)
-    // 5. write channelSize
+    // 6. write channelSize
     offset += writeVarint(channel.length, buf, offset)
-    // 6. write the channel
+    // 7. write the channel
     offset += b4a.from(channel).copy(buf, offset)
-    // 7. write timestamp
+    // 8. write timestamp
     offset += writeVarint(timestamp, buf, offset)
     
     // everything has now been written, slice out the final message from the larger buffer
@@ -979,7 +1066,7 @@ class LEAVE_POST {
   }
 
   static toJSON(buf) {
-    // { publicKey, signature, link, postType, channel, timestamp }
+    // { publicKey, signature, links, postType, channel, timestamp }
     let offset = 0
     // 1. get publicKey
     const publicKey = buf.subarray(0, constants.PUBLICKEY_SIZE)
@@ -992,26 +1079,33 @@ class LEAVE_POST {
     if (!signatureCorrect) { 
       throw new Error("could not verify created signature using keypair publicKey + secretKey") 
     }
-    // 3. get link
-    const link = buf.subarray(offset, offset + constants.HASH_SIZE)
-    offset += constants.HASH_SIZE
-    // 4. get postType
+    // 3. get numLinks
+    const numLinks = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 4. use numLinks to slice out the links
+    let links = []
+    for (let i = 0; i < numLinks; i++) {
+      links.push(buf.subarray(offset, offset + constants.HASH_SIZE))
+      offset += constants.HASH_SIZE
+    }
+    if (!isArrayHashes(links)) { throw LINKS_EXPECTED }
+    // 5. get postType
     const postType = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
     if (postType !== constants.LEAVE_POST) {
       return new Error(`"decoded postType (${postType}) is not of expected type (constants.LEAVE_POST)`)
     }
-    // 5. get channelSize
+    // 6. get channelSize
     const channelSize = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    // 6. use channelSize to get channel
+    // 7. use channelSize to get channel
     const channel = buf.subarray(offset, offset + channelSize).toString()
     offset += channelSize
-    // 7. get timestamp
+    // 8. get timestamp
     const timestamp = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
 
-    return { publicKey, signature, link, postType, channel, timestamp }
+    return { publicKey, signature, links, postType, channel, timestamp }
   }
 }
 
@@ -1038,7 +1132,14 @@ function peekReqid (buf) {
 
 // peek a buffer containing a cable post and return its post type
 function peekPost (buf) {
-  const offset = constants.PUBLICKEY_SIZE + constants.SIGNATURE_SIZE + constants.HASH_SIZE
+  // skip public key + signature
+  let offset = constants.PUBLICKEY_SIZE + constants.SIGNATURE_SIZE
+  // read numLinks
+  const numLinks = decodeVarintSlice(buf, offset)
+  offset += varint.decode.bytes
+  // skip reading links
+  offset += numLinks * constants.HASH_SIZE
+  // finally: read & return the post type
   return decodeVarintSlice(buf, offset)
 }
 
@@ -1078,11 +1179,11 @@ function parseMessage (buf) {
     case constants.HASH_RESPONSE:
       obj = HASH_RESPONSE.toJSON(buf)
       break
-    case constants.DATA_RESPONSE:
-      obj = DATA_RESPONSE.toJSON(buf)
+    case constants.POST_RESPONSE:
+      obj = POST_RESPONSE.toJSON(buf)
       break
-    case constants.HASH_REQUEST:
-      obj = HASH_REQUEST.toJSON(buf)
+    case constants.POST_REQUEST:
+      obj = POST_REQUEST.toJSON(buf)
       break
     case constants.CANCEL_REQUEST:
       obj = CANCEL_REQUEST.toJSON(buf)
@@ -1225,10 +1326,10 @@ function writeVarint (n, buf, offset) {
 
 module.exports = { 
   HASH_RESPONSE, 
-  DATA_RESPONSE, 
+  POST_RESPONSE, 
   CHANNEL_LIST_RESPONSE,
 
-  HASH_REQUEST, 
+  POST_REQUEST, 
   CANCEL_REQUEST, 
   TIME_RANGE_REQUEST, 
   CHANNEL_STATE_REQUEST, 
