@@ -576,13 +576,13 @@ class TEXT_POST {
     })
     // 5. write postType
     offset += writeVarint(constants.TEXT_POST, buf, offset)
-    // 6. write channelSize
-    offset += writeVarint(channel.length, buf, offset)
-    // 7. write the channel
-    offset += b4a.from(channel).copy(buf, offset)
-    // 8. write timestamp
+    // 6. write timestamp
     offset += writeVarint(timestamp, buf, offset)
-    // 9. write textSize
+    // 7. write channelLen
+    offset += writeVarint(channel.length, buf, offset)
+    // 8. write the channel
+    offset += b4a.from(channel).copy(buf, offset)
+    // 9. write textLen
     offset += writeVarint(text.length, buf, offset)
     // 10. write the text
     offset += b4a.from(text).copy(buf, offset)
@@ -630,21 +630,21 @@ class TEXT_POST {
     if (postType !== constants.TEXT_POST) {
       return new Error(`"decoded postType (${postType}) is not of expected type (constants.TEXT_POST)`)
     }
-    // 6. get channelSize
-    const channelSize = decodeVarintSlice(buf, offset)
-    offset += varint.decode.bytes
-    // 7. use channelSize to get channel
-    const channel = buf.subarray(offset, offset + channelSize).toString()
-    offset += channelSize
-    // 8. get timestamp
+    // 6. get timestamp
     const timestamp = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    // 9. get textSize
-    const textSize = decodeVarintSlice(buf, offset)
+    // 7. get channelLen
+    const channelLen = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    // 10. use textSize to get text
-    const text = buf.subarray(offset, offset + textSize).toString()
-    offset += textSize
+    // 8. use channelLen to get channel
+    const channel = buf.subarray(offset, offset + channelLen).toString()
+    offset += channelLen
+    // 9. get textLen
+    const textLen = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 10. use textLen to get text
+    const text = buf.subarray(offset, offset + textLen).toString()
+    offset += textLen
 
     return { publicKey, signature, links, postType, channel, timestamp, text }
   }
@@ -768,11 +768,11 @@ class INFO_POST {
     offset += writeVarint(constants.INFO_POST, buf, offset)
     // 6. write timestamp
     offset += writeVarint(timestamp, buf, offset)
-    // 7. write keySize
+    // 7. write keyLen
     offset += writeVarint(key.length, buf, offset)
     // 8. write the key
     offset += b4a.from(key).copy(buf, offset)
-    // 9. write valueSize
+    // 9. write valueLen
     offset += writeVarint(value.length, buf, offset)
     // 10. write the value
     offset += b4a.from(value).copy(buf, offset)
@@ -822,18 +822,18 @@ class INFO_POST {
     // 6. get timestamp
     const timestamp = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    // 7. get keySize
-    const keySize = decodeVarintSlice(buf, offset)
+    // 7. get keyLen
+    const keyLen = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    // 8. use keySize to get key
-    const key = buf.subarray(offset, offset + keySize).toString()
-    offset += keySize
-    // 9. get valueSize
-    const valueSize = decodeVarintSlice(buf, offset)
+    // 8. use keyLen to get key
+    const key = buf.subarray(offset, offset + keyLen).toString()
+    offset += keyLen
+    // 9. get valueLen
+    const valueLen = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    // 10. use valueSize to get value
-    const value = buf.subarray(offset, offset + valueSize).toString()
-    offset += valueSize
+    // 10. use valueLen to get value
+    const value = buf.subarray(offset, offset + valueLen).toString()
+    offset += valueLen
 
     return { publicKey, signature, links, postType, timestamp, key, value }
   }
@@ -864,13 +864,13 @@ class TOPIC_POST {
     })
     // 5. write postType
     offset += writeVarint(constants.TOPIC_POST, buf, offset)
-    // 6. write channelSize
-    offset += writeVarint(channel.length, buf, offset)
-    // 7. write the channel
-    offset += b4a.from(channel).copy(buf, offset)
-    // 8. write timestamp
+    // 6. write timestamp
     offset += writeVarint(timestamp, buf, offset)
-    // 9. write topicSize
+    // 7. write channelLen
+    offset += writeVarint(channel.length, buf, offset)
+    // 8. write the channel
+    offset += b4a.from(channel).copy(buf, offset)
+    // 9. write topicLen
     offset += writeVarint(topic.length, buf, offset)
     // 10. write the topic
     offset += b4a.from(topic).copy(buf, offset)
@@ -917,21 +917,21 @@ class TOPIC_POST {
     if (postType !== constants.TOPIC_POST) {
       return new Error(`"decoded postType (${postType}) is not of expected type (constants.TOPIC_POST)`)
     }
-    // 6. get channelSize
-    const channelSize = decodeVarintSlice(buf, offset)
-    offset += varint.decode.bytes
-    // 7. use channelSize to get channel
-    const channel = buf.subarray(offset, offset + channelSize).toString()
-    offset += channelSize
-    // 8. get timestamp
+    // 6. get timestamp
     const timestamp = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    // 9. get topicSize
-    const topicSize = decodeVarintSlice(buf, offset)
+    // 7. get channelLen
+    const channelLen = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    // 10. use topicSize to get topic
-    const topic = buf.subarray(offset, offset + topicSize).toString()
-    offset += topicSize
+    // 8. use channelLen to get channel
+    const channel = buf.subarray(offset, offset + channelLen).toString()
+    offset += channelLen
+    // 9. get topicLen
+    const topicLen = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 10. use topicLen to get topic
+    const topic = buf.subarray(offset, offset + topicLen).toString()
+    offset += topicLen
 
     return { publicKey, signature, links, postType, channel, timestamp, topic }
   }
@@ -960,12 +960,12 @@ class JOIN_POST {
     })
     // 5. write postType
     offset += writeVarint(constants.JOIN_POST, buf, offset)
-    // 6. write channelSize
-    offset += writeVarint(channel.length, buf, offset)
-    // 7. write the channel
-    offset += b4a.from(channel).copy(buf, offset)
-    // 8. write timestamp
+    // 6. write timestamp
     offset += writeVarint(timestamp, buf, offset)
+    // 7. write channelLen
+    offset += writeVarint(channel.length, buf, offset)
+    // 8. write the channel
+    offset += b4a.from(channel).copy(buf, offset)
     
     // everything has now been written, slice out the final message from the larger buffer
     const message = buf.subarray(0, offset)
@@ -1009,15 +1009,15 @@ class JOIN_POST {
     if (postType !== constants.JOIN_POST) {
       return new Error(`"decoded postType (${postType}) is not of expected type (constants.JOIN_POST)`)
     }
-    // 6. get channelSize
-    const channelSize = decodeVarintSlice(buf, offset)
-    offset += varint.decode.bytes
-    // 7. use channelSize to get channel
-    const channel = buf.subarray(offset, offset + channelSize).toString()
-    offset += channelSize
-    // 8. get timestamp
+    // 6. get timestamp
     const timestamp = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
+    // 7. get channelLen
+    const channelLen = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 8. use channelLen to get channel
+    const channel = buf.subarray(offset, offset + channelLen).toString()
+    offset += channelLen
 
     return { publicKey, signature, links, postType, channel, timestamp }
   }
@@ -1046,12 +1046,12 @@ class LEAVE_POST {
     })
     // 5. write postType
     offset += writeVarint(constants.LEAVE_POST, buf, offset)
-    // 6. write channelSize
-    offset += writeVarint(channel.length, buf, offset)
-    // 7. write the channel
-    offset += b4a.from(channel).copy(buf, offset)
-    // 8. write timestamp
+    // 6. write timestamp
     offset += writeVarint(timestamp, buf, offset)
+    // 7. write channelLen
+    offset += writeVarint(channel.length, buf, offset)
+    // 8. write the channel
+    offset += b4a.from(channel).copy(buf, offset)
     
     // everything has now been written, slice out the final message from the larger buffer
     const message = buf.subarray(0, offset)
@@ -1095,15 +1095,15 @@ class LEAVE_POST {
     if (postType !== constants.LEAVE_POST) {
       return new Error(`"decoded postType (${postType}) is not of expected type (constants.LEAVE_POST)`)
     }
-    // 6. get channelSize
-    const channelSize = decodeVarintSlice(buf, offset)
-    offset += varint.decode.bytes
-    // 7. use channelSize to get channel
-    const channel = buf.subarray(offset, offset + channelSize).toString()
-    offset += channelSize
-    // 8. get timestamp
+    // 6. get timestamp
     const timestamp = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
+    // 7. get channelLen
+    const channelLen = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 8. use channelLen to get channel
+    const channel = buf.subarray(offset, offset + channelLen).toString()
+    offset += channelLen
 
     return { publicKey, signature, links, postType, channel, timestamp }
   }
