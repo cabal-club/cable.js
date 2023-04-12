@@ -43,11 +43,13 @@ class HASH_RESPONSE {
     let offset = 0
     // 1. write message type
     offset += writeVarint(constants.HASH_RESPONSE, frame, offset)
-    // 2. write reqid
+    // 2. write circuitid (unused spec rev 2023-04)
+    offset += EMPTY_CIRCUIT_ID.copy(frame, offset)
+    // 3. write reqid
     offset += reqid.copy(frame, offset)
-    // 3. write amount of hashes (hash_count varint)
+    // 4. write amount of hashes (hash_count)
     offset += writeVarint(hashes.length, frame, offset)
-    // 4. write the hashes themselves
+    // 5. write the hashes themselves
     hashes.forEach(hash => {
       offset += hash.copy(frame, offset)
     })
@@ -69,14 +71,16 @@ class HASH_RESPONSE {
     if (msgType !== constants.HASH_RESPONSE) {
       throw new Error("decoded msgType is not of expected type (constants.HASH_RESPONSE)")
     }
-    // 3. get reqid
+    // 3. skip circuit (unused spec rev 2023-04)
+    offset += constants.CIRCUITID_SIZE
+    // 4. get reqid
     const reqid = buf.subarray(offset, offset+constants.REQID_SIZE)
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
     offset += constants.REQID_SIZE
-    // 4. get hashCount
+    // 5. get hashCount
     const hashCount = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    // 5. use hashCount to slice out the hashes
+    // 6. use hashCount to slice out the hashes
     let hashes = []
     for (let i = 0; i < hashCount; i++) {
       hashes.push(buf.subarray(offset, offset + constants.HASH_SIZE))
@@ -89,25 +93,27 @@ class HASH_RESPONSE {
 }
 
 class POST_RESPONSE {
-  static create(reqid, arrdata) {
-    if (arguments.length !== 2) { throw wrongNumberArguments(2, arguments.length, "create(reqid, arrdata)") }
+  static create(reqid, posts) {
+    if (arguments.length !== 2) { throw wrongNumberArguments(2, arguments.length, "create(reqid, posts)") }
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
-    if (!isArrayData(arrdata)) { throw new Error(`expected data to be a buffer`) }
+    if (!isArrayData(posts)) { throw new Error(`expected posts to be a buffer`) }
     // allocate default-sized buffer
     let frame = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
     let offset = 0
     // 1. write message type
     offset += writeVarint(constants.POST_RESPONSE, frame, offset)
-    // 2. write reqid
+    // 2. write circuitid (unused spec rev 2023-04)
+    offset += EMPTY_CIRCUIT_ID.copy(frame, offset)
+    // 3. write reqid
     offset += reqid.copy(frame, offset)
-    // 3. exhaust array of data
-    for (let i = 0; i < arrdata.length; i++) {
-      // 3.1 write dataLen 
-      offset += writeVarint(arrdata[i].length, frame, offset)
-      // 3.2 then write the data itself
-      offset += arrdata[i].copy(frame, offset)
+    // 4. exhaust array of posts
+    for (let i = 0; i < posts.length; i++) {
+      // 4.1 write postLen 
+      offset += writeVarint(posts[i].length, frame, offset)
+      // 4.2 then write the post itself
+      offset += posts[i].copy(frame, offset)
     }
-    // 3.3 finally: write dataLen = 0 to signal end of data
+    // 4.3 finally: write postLen = 0 to signal end of data
     offset += writeVarint(0, frame, offset)
     // resize buffer, since we have written everything except msglen
     frame = frame.subarray(0, offset)
@@ -129,31 +135,35 @@ class POST_RESPONSE {
     if (msgType !== constants.POST_RESPONSE) {
       throw new Error("decoded msgType is not of expected type (constants.POST_RESPONSE)")
     }
-    // 3. get reqid
+    // 3. skip circuit (unused spec rev 2023-04)
+    offset += constants.CIRCUITID_SIZE
+    // 4. get reqid
     const reqid = buf.subarray(offset, offset+constants.REQID_SIZE)
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
     offset += constants.REQID_SIZE
-    // 4. remaining buffer consists of [dataLen, data] segments
+    // 5. remaining buffer consists of [postLen, post] segments
     // read until it runs out
-    let data = []
+    let posts = []
     // msgLen tells us the number of bytes in the remaining cablegram i.e. *excluding* msgLen, 
     // so we need to account for that by adding msgLenBytes
     let remaining = msgLen - offset + msgLenBytes
     while (remaining > 0) {
-      const dataLen = decodeVarintSlice(buf, offset)
+      const postLen = decodeVarintSlice(buf, offset)
       offset += varint.decode.bytes
-      // if dataLen === 0 then we have no more data
-      if (dataLen === 0) { break }
-      // 5. use dataLen to slice out the hashes
-      data.push(buf.subarray(offset, offset + dataLen))
-      offset += dataLen
+      // if postLen === 0 then we have no more posts
+      if (postLen === 0) { break }
+      // 6. use postLen to slice out the hashes
+      posts.push(buf.subarray(offset, offset + postLen))
+      offset += postLen
       
       remaining = msgLen - offset + msgLenBytes
     }
 
-    return { msgLen, msgType, reqid, data }
+    return { msgLen, msgType, reqid, posts }
   }
 }
+
+const EMPTY_CIRCUIT_ID = b4a.alloc(4).fill(0)
 
 class POST_REQUEST {
   // constructs a cablegram buffer using the incoming arguments
@@ -168,13 +178,15 @@ class POST_REQUEST {
     let offset = 0
     // 1. write message type
     offset += writeVarint(constants.POST_REQUEST, frame, offset)
-    // 2. write reqid
+    // 2. write circuitid (unused spec rev 2023-04)
+    offset += EMPTY_CIRCUIT_ID.copy(frame, offset)
+    // 3. write reqid
     offset += reqid.copy(frame, offset)
-    // 3. write ttl
+    // 4. write ttl
     offset += writeVarint(ttl, frame, offset)
-    // 4. write amount of hashes (hash_count varint)
+    // 5. write amount of hashes (hash_count varint)
     offset += writeVarint(hashes.length, frame, offset)
-    // 5. write the hashes themselves
+    // 6. write the hashes themselves
     hashes.forEach(hash => {
       offset += hash.copy(frame, offset)
     })
@@ -197,17 +209,19 @@ class POST_REQUEST {
     if (msgType !== constants.POST_REQUEST) {
       throw new Error("decoded msgType is not of expected type (constants.POST_REQUEST)")
     }
-    // 3. get reqid
+    // 3. skip circuit (unused spec rev 2023-04)
+    offset += constants.CIRCUITID_SIZE
+    // 4. get reqid
     const reqid = buf.subarray(offset, offset+constants.REQID_SIZE)
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
     offset += constants.REQID_SIZE
-    // 4. get ttl
+    // 5. get ttl
     const ttl = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    // 5. get hashCount
+    // 6. get hashCount
     const hashCount = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    // 6. use hashCount to slice out the hashes
+    // 7. use hashCount to slice out the hashes
     let hashes = []
     for (let i = 0; i < hashCount; i++) {
       hashes.push(buf.subarray(offset, offset + constants.HASH_SIZE))
@@ -225,9 +239,10 @@ class POST_REQUEST {
 
 class CANCEL_REQUEST {
   // constructs a cablegram buffer using the incoming arguments
-  static create(reqid, cancelid) {
-    if (arguments.length !== 2) { throw wrongNumberArguments(2, arguments.length, "create(reqid, cancelid)") }
+  static create(reqid, ttl, cancelid) {
+    if (arguments.length !== 3) { throw wrongNumberArguments(3, arguments.length, "create(reqid, ttl, cancelid)") }
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
+    if (!isInteger(ttl)) { throw integerExpected("ttl") }
     if (!isBufferSize(cancelid, constants.REQID_SIZE)) { throw bufferExpected("cancelid", constants.REQID_SIZE) }
 
     // allocate default-sized buffer
@@ -235,9 +250,13 @@ class CANCEL_REQUEST {
     let offset = 0
     // 1. write message type
     offset += writeVarint(constants.CANCEL_REQUEST, frame, offset)
-    // 2. write reqid
+    // 2. write circuitid (unused spec rev 2023-04)
+    offset += EMPTY_CIRCUIT_ID.copy(frame, offset)
+    // 3. write reqid
     offset += reqid.copy(frame, offset)
-    // 2. write cancelid
+    // 3. write ttl (unused)
+    offset += writeVarint(ttl, frame, offset)
+    // 4. write cancelid
     offset += cancelid.copy(frame, offset)
 
     // resize buffer, since we have written everything except msglen
@@ -259,14 +278,20 @@ class CANCEL_REQUEST {
     if (msgType !== constants.CANCEL_REQUEST) {
       throw new Error("decoded msgType is not of expected type (constants.CANCEL_REQUEST)")
     }
-    // 3. get reqid
+
+    // 3. skip circuit (unused spec rev 2023-04)
+    offset += constants.CIRCUITID_SIZE
+    // 4. get reqid
     const reqid = buf.subarray(offset, offset+constants.REQID_SIZE)
     offset += constants.REQID_SIZE
-    // 4. get cancelid
+    // 5. get ttl (unused for cancel request)
+    const ttl = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 6. get cancelid
     const cancelid = buf.subarray(offset, offset+constants.REQID_SIZE)
     offset += constants.REQID_SIZE
 
-    return { msgLen, msgType, reqid, cancelid }
+    return { msgLen, msgType, reqid, ttl, cancelid }
   }
 }
 
@@ -285,19 +310,21 @@ class TIME_RANGE_REQUEST {
     let offset = 0
     // 1. write message type
     offset += writeVarint(constants.TIME_RANGE_REQUEST, frame, offset)
-    // 2. write reqid
+    // 2. write circuitid (unused spec rev 2023-04)
+    offset += EMPTY_CIRCUIT_ID.copy(frame, offset)
+    // 3. write reqid
     offset += reqid.copy(frame, offset)
-    // 3. write ttl
+    // 4. write ttl
     offset += writeVarint(ttl, frame, offset)
-    // 4. write channel_size
+    // 5. write channel_len
     offset += writeVarint(channel.length, frame, offset)
-    // 5. write the channel
+    // 6. write the channel
     offset += b4a.from(channel).copy(frame, offset)
-    // 6. write time_start
+    // 7. write time_start
     offset += writeVarint(timeStart, frame, offset)
-    // 7. write time_end
+    // 8. write time_end
     offset += writeVarint(timeEnd, frame, offset)
-    // 8. write limit
+    // 9. write limit
     offset += writeVarint(limit, frame, offset)
     // resize buffer, since we have written everything except msglen
     frame = frame.subarray(0, offset)
@@ -318,25 +345,27 @@ class TIME_RANGE_REQUEST {
     if (msgType !== constants.TIME_RANGE_REQUEST) {
       return new Error(`"decoded msgType (${msgType}) is not of expected type (constants.TIME_RANGE_REQUEST)`)
     }
-    // 3. get reqid
+    // 3. skip circuit (unused spec rev 2023-04)
+    offset += constants.CIRCUITID_SIZE
+    // 4. get reqid
     const reqid = buf.subarray(offset, offset+constants.REQID_SIZE)
     offset += constants.REQID_SIZE
-    // 4. get ttl
+    // 5. get ttl
     const ttl = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    // 5. get channelSize
-    const channelSize = decodeVarintSlice(buf, offset)
+    // 6. get channelLen
+    const channelLen = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    // 6. use channelSize to slice out the channel
-    const channel = buf.subarray(offset, offset + channelSize).toString()
-    offset += channelSize
-    // 7. get timeStart
+    // 7. use channelLen to slice out the channel
+    const channel = buf.subarray(offset, offset + channelLen).toString()
+    offset += channelLen
+    // 8. get timeStart
     const timeStart = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    // 8. get timeEnd
+    // 9. get timeEnd
     const timeEnd = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    // 9. get limit
+    // 10. get limit
     const limit = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
 
@@ -362,17 +391,19 @@ class CHANNEL_STATE_REQUEST {
     let offset = 0
     // 1. write message type
     offset += writeVarint(constants.CHANNEL_STATE_REQUEST, frame, offset)
-    // 2. write reqid
+    // 2. write circuitid (unused spec rev 2023-04)
+    offset += EMPTY_CIRCUIT_ID.copy(frame, offset)
+    // 3. write reqid
     offset += reqid.copy(frame, offset)
-    // 3. write ttl
+    // 4. write ttl
     offset += writeVarint(ttl, frame, offset)
-    // 4. write channel_size
+    // 5. write channel_len
     offset += writeVarint(channel.length, frame, offset)
-    // 5. write the channel
+    // 6. write the channel
     offset += b4a.from(channel).copy(frame, offset)
-    // 6. write limit 
+    // 7. write limit 
     offset += writeVarint(limit, frame, offset)
-    // 7. write updates
+    // 8. write updates
     offset += writeVarint(updates, frame, offset)
     // resize buffer, since we have written everything except msglen
     frame = frame.subarray(0, offset)
@@ -392,23 +423,25 @@ class CHANNEL_STATE_REQUEST {
     if (msgType !== constants.CHANNEL_STATE_REQUEST) {
       return new Error(`"decoded msgType (${msgType}) is not of expected type (constants.CHANNEL_STATE_REQUEST)`)
     }
-    // 3. get reqid
+    // 3. skip circuit (unused spec rev 2023-04)
+    offset += constants.CIRCUITID_SIZE
+    // 4. get reqid
     const reqid = buf.subarray(offset, offset+constants.REQID_SIZE)
     offset += constants.REQID_SIZE
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
-    // 4. get ttl
+    // 5. get ttl
     const ttl = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    // 5. get channelSize
-    const channelSize = decodeVarintSlice(buf, offset)
+    // 6. get channelLen
+    const channelLen = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    // 6. use channelSize to slice out channel
-    const channel = buf.subarray(offset, offset + channelSize).toString()
-    offset += channelSize
-    // 7. get limit
+    // 7. use channelLen to slice out channel
+    const channel = buf.subarray(offset, offset + channelLen).toString()
+    offset += channelLen
+    // 8. get limit
     const limit = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    // 8. get updates
+    // 9. get updates
     const updates = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
 
@@ -433,13 +466,15 @@ class CHANNEL_LIST_REQUEST {
     let offset = 0
     // 1. write message type
     offset += writeVarint(constants.CHANNEL_LIST_REQUEST, frame, offset)
-    // 2. write reqid
+    // 2. write circuitid (unused spec rev 2023-04)
+    offset += EMPTY_CIRCUIT_ID.copy(frame, offset)
+    // 3. write reqid
     offset += reqid.copy(frame, offset)
-    // 3. write ttl
+    // 4. write ttl
     offset += writeVarint(ttl, frame, offset)
-    // 4. write offset 
+    // 5. write offset 
     offset += writeVarint(argOffset, frame, offset)
-    // 5. write limit 
+    // 6. write limit 
     offset += writeVarint(limit, frame, offset)
     // resize buffer, since we have written everything except msglen
     frame = frame.subarray(0, offset)
@@ -459,17 +494,19 @@ class CHANNEL_LIST_REQUEST {
     if (msgType !== constants.CHANNEL_LIST_REQUEST) {
       return new Error(`"decoded msgType (${msgType}) is not of expected type (constants.CHANNEL_LIST_REQUEST)`)
     }
-    // 3. get reqid
+    // 3. skip circuit (unused spec rev 2023-04)
+    offset += constants.CIRCUITID_SIZE
+    // 4. get reqid
     const reqid = buf.subarray(offset, offset+constants.REQID_SIZE)
     offset += constants.REQID_SIZE
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
-    // 4. get ttl
+    // 5. get ttl
     const ttl = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    // 5. get offset
+    // 6. get offset
     const argOffset = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    // 6. get limit
+    // 7. get limit
     const limit = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
 
@@ -492,16 +529,18 @@ class CHANNEL_LIST_RESPONSE {
     let offset = 0
     // 1. write message type
     offset += writeVarint(constants.CHANNEL_LIST_RESPONSE, frame, offset)
-    // 2. write reqid
+    // 2. write circuitid (unused spec rev 2023-04)
+    offset += EMPTY_CIRCUIT_ID.copy(frame, offset)
+    // 3. write reqid
     offset += reqid.copy(frame, offset)
-    // 3. write channels
+    // 4. write channels
     channels.forEach(channel => {
-      // 3.1 write channelLen
+      // 4.1 write channelLen
       offset += writeVarint(channel.length, frame, offset)
-      // 3.2 write channel
+      // 4.2 write channel
       offset += b4a.from(channel).copy(frame, offset)
     })
-    // 3.3 finally: write a channelLen = 0 to signal end of channel data
+    // 4.3 finally: write a channelLen = 0 to signal end of channel data
     offset += writeVarint(0, frame, offset)
     // resize buffer, since we have written everything except msglen
     frame = frame.subarray(0, offset)
@@ -523,11 +562,13 @@ class CHANNEL_LIST_RESPONSE {
     if (msgType !== constants.CHANNEL_LIST_RESPONSE) {
       return new Error(`"decoded msgType (${msgType}) is not of expected type (constants.CHANNEL_LIST_RESPONSE)`)
     }
-    // 3. get reqid
+    // 3. skip circuit (unused spec rev 2023-04)
+    offset += constants.CIRCUITID_SIZE
+    // 4. get reqid
     const reqid = buf.subarray(offset, offset+constants.REQID_SIZE)
     offset += constants.REQID_SIZE
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
-    // 4. get channels
+    // 5. get channels
     const channels = []
     // msgLen tells us the number of bytes in the remaining cablegram i.e. *excluding* msgLen, 
     // so we need to account for that by adding msgLenBytes
@@ -538,7 +579,7 @@ class CHANNEL_LIST_RESPONSE {
       offset += varint.decode.bytes
       // if channelLen === 0 then we have no more channels in this response
       if (channelLen === 0) { break }
-      // 5. use dataLen to slice out the hashes
+      // 6. use channelLen to slice out the channel
       channels.push(buf.subarray(offset, offset + channelLen).toString())
       offset += channelLen
       remaining = msgLen - offset + msgLenBytes
@@ -1126,6 +1167,8 @@ function peekReqid (buf) {
   // decode msg type and discard
   decodeVarintSlice(buf, offset)
   offset += varint.decode.bytes
+  // skip circuitid
+  offset += constants.CIRCUITID_SIZE
   // read & return reqid
   return buf.subarray(offset, offset+constants.REQID_SIZE)
 }
@@ -1218,7 +1261,9 @@ function insertNewTTL(buf, expectedType) {
     if (msgType !== expectedType) {
       throw new Error(`decoded msgType is not of expected type (expected ${expectedType}, was ${msgType})`)
     }
-    // 3. reqid
+    // 3. circuitid
+    offset += constants.CIRCUITID_SIZE
+    // 4. reqid
     offset += constants.REQID_SIZE
     // get ttl
     const beforeTTL = buf.subarray(msgLenOffset, offset)

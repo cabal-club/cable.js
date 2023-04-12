@@ -68,31 +68,31 @@ test("0: hash response - wrong parameters", t => {
 test("1: post response", t => {
   const keypair = crypto.generateKeypair()
   const links = generateFakeHashes(1)
-  const requestedData = [LEAVE_POST.create(keypair.publicKey, keypair.secretKey, links, "introduction", 124)]
+  const requestedPosts = [LEAVE_POST.create(keypair.publicKey, keypair.secretKey, links, "introduction", 124)]
   const reqid = crypto.generateReqID()
 
-  const buf = POST_RESPONSE.create(reqid, requestedData)
+  const buf = POST_RESPONSE.create(reqid, requestedPosts)
   t.equal(cable.peek(buf), constants.POST_RESPONSE, "message type should be post response")
   const obj = POST_RESPONSE.toJSON(buf)
   t.equal(obj.msgType, constants.POST_RESPONSE, "deserialized message type should also be post response")
   t.same(obj.reqid, reqid, "reqid should be same")
-  t.deepEqual(obj.data, requestedData, "decoded payload should be same as input")
+  t.deepEqual(obj.posts, requestedPosts, "decoded payload should be same as input")
   t.end()
 })
 
 test("1: post response - wrong parameters", t => {
   const keypair = crypto.generateKeypair()
   const links = generateFakeHashes(1)
-  const requestedData = [LEAVE_POST.create(keypair.publicKey, keypair.secretKey, links, "introduction", 124)]
+  const requestedPosts = [LEAVE_POST.create(keypair.publicKey, keypair.secretKey, links, "introduction", 124)]
   const reqid = crypto.generateReqID()
   // reqid is incorrect
   t.throws(() => {
-    const buf = POST_RESPONSE.create("reqid", requestedData)
+    const buf = POST_RESPONSE.create("reqid", requestedPosts)
   }, errorPattern,"should error when passed faulty type for reqid")
   // payload is incorrect
   t.throws(() => {
     const buf = POST_RESPONSE.create(reqid, "")
-  },  errorPattern, "should error when passed faulty type for data")
+  },  errorPattern, "should error when passed faulty type for posts")
   // number of arguments is incorrect
   t.throws(() => {
     const buf = POST_RESPONSE.create(crypto.generateReqID())
@@ -127,7 +127,7 @@ test("7: channel list response - wrong parameters", t => {
   // payload is incorrect
   t.throws(() => {
     const buf = CHANNEL_LIST_RESPONSE.create(reqid, "")
-  },  errorPattern, "should error when passed faulty type for data")
+  },  errorPattern, "should error when passed faulty type for posts")
   // number of arguments is incorrect
   t.throws(() => {
     const buf = CHANNEL_LIST_RESPONSE.create(crypto.generateReqID())
@@ -169,7 +169,8 @@ test("2: post request, decrement ttl", t => {
 test("3: cancel request", t => {
   const reqid = crypto.generateReqID()
   const cancelid = crypto.generateReqID()
-  const buf = CANCEL_REQUEST.create(reqid, cancelid)
+  const ttl = 0 // unused in cancel req
+  const buf = CANCEL_REQUEST.create(reqid, ttl, cancelid)
   t.same(cable.peek(buf), constants.CANCEL_REQUEST, "msg type should be cancel request")
   const obj = CANCEL_REQUEST.toJSON(buf)
   t.same(obj.reqid, reqid, "reqid should be same")
@@ -435,7 +436,7 @@ test("5: post/leave", t => {
 test("cablegrams with same input should be identical", t => {
   const keypair = crypto.generateKeypair()
   const links = generateFakeHashes(1)
-  const requestedData = [LEAVE_POST.create(keypair.publicKey, keypair.secretKey, links, "introduction", 124)]
+  const requestedPosts = [LEAVE_POST.create(keypair.publicKey, keypair.secretKey, links, "introduction", 124)]
   const reqid = crypto.generateReqID()
   const cancelid = crypto.generateReqID()
   const hashes = generateFakeHashes(3)
@@ -450,8 +451,8 @@ test("cablegrams with same input should be identical", t => {
   const grams = []
 
   grams.push(["hash response", HASH_RESPONSE.create(reqid, hashes), HASH_RESPONSE.create(reqid, hashes)])
-  grams.push(["post response", POST_RESPONSE.create(reqid, requestedData), POST_RESPONSE.create(reqid, requestedData)])
-  grams.push(["cancel request", CANCEL_REQUEST.create(reqid, cancelid), CANCEL_REQUEST.create(reqid, cancelid)])
+  grams.push(["post response", POST_RESPONSE.create(reqid, requestedPosts), POST_RESPONSE.create(reqid, requestedPosts)])
+  grams.push(["cancel request", CANCEL_REQUEST.create(reqid, ttl, cancelid), CANCEL_REQUEST.create(reqid, ttl, cancelid)])
   grams.push(["channel time range request", TIME_RANGE_REQUEST.create(reqid, ttl, channel, timeStart, timeEnd, limit), TIME_RANGE_REQUEST.create(reqid, ttl, channel, timeStart, timeEnd, limit)])
   grams.push(["channel state request", CHANNEL_STATE_REQUEST.create(reqid, ttl, channel, limit, updates), CHANNEL_STATE_REQUEST.create(reqid, ttl, channel, limit, updates)])
   grams.push(["channel list request", CHANNEL_LIST_REQUEST.create(reqid, ttl, offset, limit), CHANNEL_LIST_REQUEST.create(reqid, ttl, offset, limit)])
