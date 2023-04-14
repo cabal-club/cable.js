@@ -316,10 +316,12 @@ class TIME_RANGE_REQUEST {
     offset += reqid.copy(frame, offset)
     // 4. write ttl
     offset += writeVarint(ttl, frame, offset)
+    // convert to buf: yields correct length wrt utf-8 bytes + used when copying
+    const channelBuf = b4a.from(channel)
     // 5. write channel_len
-    offset += writeVarint(channel.length, frame, offset)
+    offset += writeVarint(channelBuf.length, frame, offset)
     // 6. write the channel
-    offset += b4a.from(channel).copy(frame, offset)
+    offset += channelBuf.copy(frame, offset)
     // 7. write time_start
     offset += writeVarint(timeStart, frame, offset)
     // 8. write time_end
@@ -397,10 +399,12 @@ class CHANNEL_STATE_REQUEST {
     offset += reqid.copy(frame, offset)
     // 4. write ttl
     offset += writeVarint(ttl, frame, offset)
+    // convert to buf: yields correct length wrt utf-8 bytes + used when copying
+    const channelBuf = b4a.from(channel)
     // 5. write channel_len
-    offset += writeVarint(channel.length, frame, offset)
+    offset += writeVarint(channelBuf.length, frame, offset)
     // 6. write the channel
-    offset += b4a.from(channel).copy(frame, offset)
+    offset += channelBuf.copy(frame, offset)
     // 7. write limit 
     offset += writeVarint(limit, frame, offset)
     // 8. write updates
@@ -535,10 +539,12 @@ class CHANNEL_LIST_RESPONSE {
     offset += reqid.copy(frame, offset)
     // 4. write channels
     channels.forEach(channel => {
+      // convert to buf: yields correct length wrt utf-8 bytes + used when copying
+      const channelBuf = b4a.from(channel)
       // 4.1 write channelLen
-      offset += writeVarint(channel.length, frame, offset)
+      offset += writeVarint(channelBuf.length, frame, offset)
       // 4.2 write channel
-      offset += b4a.from(channel).copy(frame, offset)
+      offset += channelBuf.copy(frame, offset)
     })
     // 4.3 finally: write a channelLen = 0 to signal end of channel data
     offset += writeVarint(0, frame, offset)
@@ -619,14 +625,18 @@ class TEXT_POST {
     offset += writeVarint(constants.TEXT_POST, buf, offset)
     // 6. write timestamp
     offset += writeVarint(timestamp, buf, offset)
+    // convert to buf: yields correct length wrt utf-8 bytes + used when copying
+    const channelBuf = b4a.from(channel)
     // 7. write channelLen
-    offset += writeVarint(channel.length, buf, offset)
+    offset += writeVarint(channelBuf.length, buf, offset)
     // 8. write the channel
-    offset += b4a.from(channel).copy(buf, offset)
+    offset += channelBuf.copy(buf, offset)
+    // convert to buf: yields correct length wrt utf-8 bytes + used when copying
+    const textBuf = b4a.from(text)
     // 9. write textLen
-    offset += writeVarint(text.length, buf, offset)
+    offset += writeVarint(textBuf.length, buf, offset)
     // 10. write the text
-    offset += b4a.from(text).copy(buf, offset)
+    offset += textBuf.copy(buf, offset)
 
     // everything has now been written, slice out the final message from the larger buffer
     const message = buf.subarray(0, offset)
@@ -809,14 +819,18 @@ class INFO_POST {
     offset += writeVarint(constants.INFO_POST, buf, offset)
     // 6. write timestamp
     offset += writeVarint(timestamp, buf, offset)
+    // convert to buf: yields correct length wrt utf-8 bytes + used when copying
+    const keyBuf = b4a.from(key)
     // 7. write keyLen
-    offset += writeVarint(key.length, buf, offset)
+    offset += writeVarint(keyBuf.length, buf, offset)
     // 8. write the key
-    offset += b4a.from(key).copy(buf, offset)
+    offset += keyBuf.copy(buf, offset)
+    // convert to buf: yields correct length wrt utf-8 bytes + used when copying
+    const valueBuf = b4a.from(value)
     // 9. write valueLen
-    offset += writeVarint(value.length, buf, offset)
+    offset += writeVarint(valueBuf.length, buf, offset)
     // 10. write the value
-    offset += b4a.from(value).copy(buf, offset)
+    offset += valueBuf.copy(buf, offset)
     
     // everything has now been written, slice out the final message from the larger buffer
     const message = buf.subarray(0, offset)
@@ -907,14 +921,18 @@ class TOPIC_POST {
     offset += writeVarint(constants.TOPIC_POST, buf, offset)
     // 6. write timestamp
     offset += writeVarint(timestamp, buf, offset)
+    // convert to buf: yields correct length wrt utf-8 bytes + used when copying
+    const channelBuf = b4a.from(channel)
     // 7. write channelLen
-    offset += writeVarint(channel.length, buf, offset)
+    offset += writeVarint(channelBuf.length, buf, offset)
     // 8. write the channel
-    offset += b4a.from(channel).copy(buf, offset)
+    offset += channelBuf.copy(buf, offset)
+    // convert to buf: yields correct length wrt utf-8 bytes + used when copying
+    const topicBuf = b4a.from(topic)
     // 9. write topicLen
-    offset += writeVarint(topic.length, buf, offset)
+    offset += writeVarint(topicBuf.length, buf, offset)
     // 10. write the topic
-    offset += b4a.from(topic).copy(buf, offset)
+    offset += topicBuf.copy(buf, offset)
     
     // everything has now been written, slice out the final message from the larger buffer
     const message = buf.subarray(0, offset)
@@ -1003,10 +1021,12 @@ class JOIN_POST {
     offset += writeVarint(constants.JOIN_POST, buf, offset)
     // 6. write timestamp
     offset += writeVarint(timestamp, buf, offset)
+    // convert to buf: yields correct length wrt utf-8 bytes + used when copying
+    const channelBuf = b4a.from(channel)
     // 7. write channelLen
-    offset += writeVarint(channel.length, buf, offset)
+    offset += writeVarint(channelBuf.length, buf, offset)
     // 8. write the channel
-    offset += b4a.from(channel).copy(buf, offset)
+    offset += channelBuf.copy(buf, offset)
     
     // everything has now been written, slice out the final message from the larger buffer
     const message = buf.subarray(0, offset)
@@ -1089,10 +1109,12 @@ class LEAVE_POST {
     offset += writeVarint(constants.LEAVE_POST, buf, offset)
     // 6. write timestamp
     offset += writeVarint(timestamp, buf, offset)
+    // convert to buf: yields correct length wrt utf-8 bytes + used when copying
+    const channelBuf = b4a.from(channel)
     // 7. write channelLen
-    offset += writeVarint(channel.length, buf, offset)
+    offset += writeVarint(channelBuf.length, buf, offset)
     // 8. write the channel
-    offset += b4a.from(channel).copy(buf, offset)
+    offset += channelBuf.copy(buf, offset)
     
     // everything has now been written, slice out the final message from the larger buffer
     const message = buf.subarray(0, offset)
