@@ -2,10 +2,10 @@ const sodium = require("sodium-universal")
 /*
 RESPONSE TYPES
 0. hash response
-1. data response
+1. post response
 
 REQUEST TYPES
-2. request by hash
+2. post request
 3. cancel request
 4. request channel time range
 5. request channel state
@@ -24,13 +24,13 @@ POST TYPES
 /* Response types */
 // 0. hash response
 const HASH_RESPONSE = 0 
-/* 1. data response */
+/* 1. post response */
 const POST_RESPONSE = 1 
 // 7. channel list response
 const CHANNEL_LIST_RESPONSE = 7
 
 /* Request types */
-// 2. request by hash
+// 2. post request
 const POST_REQUEST = 2
 // 3. cancel request
 const CANCEL_REQUEST = 3
@@ -60,6 +60,22 @@ const PUBLICKEY_SIZE = sodium.crypto_sign_PUBLICKEYBYTES
 const SECRETKEY_SIZE = sodium.crypto_sign_SECRETKEYBYTES
 const SIGNATURE_SIZE = sodium.crypto_sign_BYTES
 
+// cable specification max sizes wrt bytes and codepoints
+const USER_NAME_MIN_CODEPOINTS = 1
+const USER_NAME_MAX_CODEPOINTS = 32
+
+const CHANNEL_NAME_MIN_CODEPOINTS = 1
+const CHANNEL_NAME_MAX_CODEPOINTS = 64
+
+const POST_TEXT_MAX_BYTES = 4096
+
+const INFO_KEY_MIN_CODEPOINTS = 1
+const INFO_KEY_MAX_CODEPOINTS = 128
+const INFO_VALUE_MAX_BYTES = 4096
+
+const TOPIC_MIN_CODEPOINTS = 0
+const TOPIC_MAX_CODEPOINTS = 512
+
 module.exports = {
   HASH_RESPONSE,
   POST_RESPONSE,
@@ -85,5 +101,16 @@ module.exports = {
   HASH_SIZE,
   PUBLICKEY_SIZE,
   SECRETKEY_SIZE,
-  SIGNATURE_SIZE
+  SIGNATURE_SIZE,
+
+  USER_NAME_MIN_CODEPOINTS,
+  USER_NAME_MAX_CODEPOINTS,
+  CHANNEL_NAME_MIN_CODEPOINTS,
+  CHANNEL_NAME_MAX_CODEPOINTS,
+  POST_TEXT_MAX_BYTES,
+  INFO_KEY_MIN_CODEPOINTS,
+  INFO_KEY_MAX_CODEPOINTS,
+  INFO_VALUE_MAX_BYTES,
+  TOPIC_MIN_CODEPOINTS,
+  TOPIC_MAX_CODEPOINTS
 }

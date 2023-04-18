@@ -6,9 +6,7 @@ const varint = require("varint")
 const crypto = require("./cryptography.js")
 
 // TODO (2023-01-10):
-// * in the create methods: improve their resiliency by detecting when the pre-allocated buffer will not be large enough, and reallocatIe a larger buffer
-// * reserve 4 bytes between `req_id` and `ttl`
-//  in requests, and also in responses after `req_id` for circuits
+// * in the create methods: improve their resiliency by detecting when the pre-allocated buffer will not be large enough, and reallocate a larger buffer
 
 // TODO (2023-01-11): regarding byte size of a string
 // is it enough to simply do str.length to get the correct byte size? any gotchas?
@@ -16,11 +14,18 @@ const crypto = require("./cryptography.js")
 // TODO (2023-01-11): 
 // would like to abstract away `offset += varint.decode.bytes` in case we swap library / opt for self-authored standard
 
+// TODO (2023-04-18): introduce specific error classes to be able to distinguish between e.g. missing # of paramenters (fatal impl error) and lengths of strings (user behaviour, recoverable)
 const LINKS_EXPECTED = new Error("expected links to contain an array of hash-sized buffers")
 const HASHES_EXPECTED = new Error("expected hashes to contain an array of hash-sized buffers")
 const STRINGS_EXPECTED = new Error("expected channels to contain an array of strings")
 function bufferExpected (param, size) {
   return new Error(`expected ${param} to be a buffer of size ${size}`)
+}
+function bufferExpectedMax (param, max, actual) {
+  return new Error(`expected ${param} to be a buffer of at most ${max} bytes; was ${actual}`)
+}
+function codepointRangeExpected (param, min, max, actual) {
+  return new Error(`expected ${param} to be between ${min} and ${max} codepoints; was ${actual}`)
 }
 function integerExpected (param) {
   return new Error(`expected ${param} to be an integer`)
@@ -305,6 +310,7 @@ class TIME_RANGE_REQUEST {
     if (!isInteger(timeEnd)) { throw integerExpected("timeEnd") }
     if (!isInteger(limit)) { throw integerExpected("limit") }
 
+    let correctlySized
     // allocate default-sized buffer
     let frame = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
     let offset = 0
@@ -318,6 +324,8 @@ class TIME_RANGE_REQUEST {
     offset += writeVarint(ttl, frame, offset)
     // convert to buf: yields correct length wrt utf-8 bytes + used when copying
     const channelBuf = b4a.from(channel)
+    correctlySized = isBufferSizeMin(channelBuf, constants.CHANNEL_NAME_MIN_CODEPOINTS) && isBufferSizeMax(channelBuf, constants.CHANNEL_NAME_MAX_CODEPOINTS)
+    if (!correctlySized) { throw codepointRangeExpected("channel", constants.TOPIC_MIN_CODEPOINTS, constants.TOPIC_MAX_CODEPOINTS, channelBuf.length) }
     // 5. write channel_len
     offset += writeVarint(channelBuf.length, frame, offset)
     // 6. write the channel
@@ -388,6 +396,7 @@ class CHANNEL_STATE_REQUEST {
     if (!isInteger(limit)) { throw integerExpected("limit") }
     if (!isInteger(updates)) { throw integerExpected("updates") }
 
+    let correctlySized
     // allocate default-sized buffer
     let frame = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
     let offset = 0
@@ -401,6 +410,8 @@ class CHANNEL_STATE_REQUEST {
     offset += writeVarint(ttl, frame, offset)
     // convert to buf: yields correct length wrt utf-8 bytes + used when copying
     const channelBuf = b4a.from(channel)
+    correctlySized = isBufferSizeMin(channelBuf, constants.CHANNEL_NAME_MIN_CODEPOINTS) && isBufferSizeMax(channelBuf, constants.CHANNEL_NAME_MAX_CODEPOINTS)
+    if (!correctlySized) { throw codepointRangeExpected("channel", constants.TOPIC_MIN_CODEPOINTS, constants.TOPIC_MAX_CODEPOINTS, channelBuf.length) }
     // 5. write channel_len
     offset += writeVarint(channelBuf.length, frame, offset)
     // 6. write the channel
@@ -528,6 +539,7 @@ class CHANNEL_LIST_RESPONSE {
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
     if (!isArrayString(channels)) { throw STRINGS_EXPECTED }
 
+    let correctlySized
     // allocate default-sized buffer
     let frame = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
     let offset = 0
@@ -541,6 +553,8 @@ class CHANNEL_LIST_RESPONSE {
     channels.forEach(channel => {
       // convert to buf: yields correct length wrt utf-8 bytes + used when copying
       const channelBuf = b4a.from(channel)
+      correctlySized = isBufferSizeMin(channelBuf, constants.CHANNEL_NAME_MIN_CODEPOINTS) && isBufferSizeMax(channelBuf, constants.CHANNEL_NAME_MAX_CODEPOINTS)
+      if (!correctlySized) { throw codepointRangeExpected("channel", constants.TOPIC_MIN_CODEPOINTS, constants.TOPIC_MAX_CODEPOINTS, channelBuf.length) }
       // 4.1 write channelLen
       offset += writeVarint(channelBuf.length, frame, offset)
       // 4.2 write channel
@@ -609,6 +623,7 @@ class TEXT_POST {
     if (!isInteger(timestamp)) { throw integerExpected("timestamp") }
     if (!isString(text)) { throw stringExpected("text") }
     
+    let correctlySized
     let offset = 0
     const buf = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
     // 1. write public key
@@ -627,12 +642,16 @@ class TEXT_POST {
     offset += writeVarint(timestamp, buf, offset)
     // convert to buf: yields correct length wrt utf-8 bytes + used when copying
     const channelBuf = b4a.from(channel)
+    correctlySized = isBufferSizeMin(channelBuf, constants.CHANNEL_NAME_MIN_CODEPOINTS) && isBufferSizeMax(channelBuf, constants.CHANNEL_NAME_MAX_CODEPOINTS)
+    if (!correctlySized) { throw codepointRangeExpected("channel", constants.TOPIC_MIN_CODEPOINTS, constants.TOPIC_MAX_CODEPOINTS, channelBuf.length) }
     // 7. write channelLen
     offset += writeVarint(channelBuf.length, buf, offset)
     // 8. write the channel
     offset += channelBuf.copy(buf, offset)
     // convert to buf: yields correct length wrt utf-8 bytes + used when copying
     const textBuf = b4a.from(text)
+    correctlySized = isBufferSizeMax(textBuf, constants.POST_TEXT_MAX_BYTES)
+    if (!correctlySized) { throw new bufferExpectedMax("text", constants.POST_TEXT_MAX_BYTES, textBuf.len) }
     // 9. write textLen
     offset += writeVarint(textBuf.length, buf, offset)
     // 10. write the text
@@ -803,6 +822,7 @@ class INFO_POST {
     if (!isString(key)) { throw stringExpected("key") }
     if (!isString(value)) { throw stringExpected("value") }
     
+    let correctlySized
     let offset = 0
     const buf = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
     // 1. write public key
@@ -821,12 +841,20 @@ class INFO_POST {
     offset += writeVarint(timestamp, buf, offset)
     // convert to buf: yields correct length wrt utf-8 bytes + used when copying
     const keyBuf = b4a.from(key)
+    correctlySized = isBufferSizeMin(keyBuf, constants.INFO_KEY_MIN_CODEPOINTS) && isBufferSizeMax(keyBuf, constants.INFO_KEY_MAX_CODEPOINTS)
+    if (!correctlySized) { throw codepointRangeExpected("key", constants.INFO_KEY_MIN_CODEPOINTS, constants.INFO_KEY_MAX_CODEPOINTS, keyBuf.length) }
     // 7. write keyLen
     offset += writeVarint(keyBuf.length, buf, offset)
     // 8. write the key
     offset += keyBuf.copy(buf, offset)
     // convert to buf: yields correct length wrt utf-8 bytes + used when copying
     const valueBuf = b4a.from(value)
+    correctlySized = isBufferSizeMax(valueBuf, constants.INFO_VALUE_MAX_BYTES)
+    if (!correctlySized) { throw new bufferExpectedMax("value", constants.INFO_VALUE_MAX_BYTES, textBuf.len) }
+    if (key === "name") {
+    correctlySized = isBufferSizeMin(valueBuf, constants.USER_NAME_MIN_CODEPOINTS) && isBufferSizeMax(valueBuf, constants.USER_NAME_MAX_CODEPOINTS)
+    if (!correctlySized) { throw codepointRangeExpected("name", constants.USER_NAME_MIN_CODEPOINTS, constants.USER_NAME_MAX_CODEPOINTS, valueBuf.length) }
+    }
     // 9. write valueLen
     offset += writeVarint(valueBuf.length, buf, offset)
     // 10. write the value
@@ -904,7 +932,8 @@ class TOPIC_POST {
     if (!isString(channel)) { throw stringExpected("channel") }
     if (!isInteger(timestamp)) { throw integerExpected("timestamp") }
     if (!isString(topic)) { throw stringExpected("topic") }
-    
+
+    let correctlySized
     let offset = 0
     const buf = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
     // 1. write public key
@@ -923,12 +952,16 @@ class TOPIC_POST {
     offset += writeVarint(timestamp, buf, offset)
     // convert to buf: yields correct length wrt utf-8 bytes + used when copying
     const channelBuf = b4a.from(channel)
+    correctlySized = isBufferSizeMin(channelBuf, constants.CHANNEL_NAME_MIN_CODEPOINTS) && isBufferSizeMax(channelBuf, constants.CHANNEL_NAME_MAX_CODEPOINTS)
+    if (!correctlySized) { throw codepointRangeExpected("channel", constants.TOPIC_MIN_CODEPOINTS, constants.TOPIC_MAX_CODEPOINTS, channelBuf.length) }
     // 7. write channelLen
     offset += writeVarint(channelBuf.length, buf, offset)
     // 8. write the channel
     offset += channelBuf.copy(buf, offset)
     // convert to buf: yields correct length wrt utf-8 bytes + used when copying
     const topicBuf = b4a.from(topic)
+    correctlySized = isBufferSizeMin(topicBuf, constants.TOPIC_MIN_CODEPOINTS) && isBufferSizeMax(topicBuf, constants.TOPIC_MAX_CODEPOINTS)
+    if (!correctlySized) { throw codepointRangeExpected("topic", constants.TOPIC_MIN_CODEPOINTS, constants.TOPIC_MAX_CODEPOINTS, topicBuf.length) }
     // 9. write topicLen
     offset += writeVarint(topicBuf.length, buf, offset)
     // 10. write the topic
@@ -1005,6 +1038,7 @@ class JOIN_POST {
     if (!isString(channel)) { throw stringExpected("channel") }
     if (!isInteger(timestamp)) { throw integerExpected("timestamp") }
     
+    let correctlySized
     let offset = 0
     const buf = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
     // 1. write public key
@@ -1023,6 +1057,8 @@ class JOIN_POST {
     offset += writeVarint(timestamp, buf, offset)
     // convert to buf: yields correct length wrt utf-8 bytes + used when copying
     const channelBuf = b4a.from(channel)
+    correctlySized = isBufferSizeMin(channelBuf, constants.CHANNEL_NAME_MIN_CODEPOINTS) && isBufferSizeMax(channelBuf, constants.CHANNEL_NAME_MAX_CODEPOINTS)
+    if (!correctlySized) { throw codepointRangeExpected("channel", constants.TOPIC_MIN_CODEPOINTS, constants.TOPIC_MAX_CODEPOINTS, channelBuf.length) }
     // 7. write channelLen
     offset += writeVarint(channelBuf.length, buf, offset)
     // 8. write the channel
@@ -1093,6 +1129,7 @@ class LEAVE_POST {
     if (!isString(channel)) { throw stringExpected("channel") }
     if (!isInteger(timestamp)) { throw integerExpected("timestamp") }
     
+    let correctlySized
     let offset = 0
     const buf = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
     // 1. write public key
@@ -1111,6 +1148,8 @@ class LEAVE_POST {
     offset += writeVarint(timestamp, buf, offset)
     // convert to buf: yields correct length wrt utf-8 bytes + used when copying
     const channelBuf = b4a.from(channel)
+    correctlySized = isBufferSizeMin(channelBuf, constants.CHANNEL_NAME_MIN_CODEPOINTS) && isBufferSizeMax(channelBuf, constants.CHANNEL_NAME_MAX_CODEPOINTS)
+    if (!correctlySized) { throw codepointRangeExpected("channel", constants.TOPIC_MIN_CODEPOINTS, constants.TOPIC_MAX_CODEPOINTS, channelBuf.length) }
     // 7. write channelLen
     offset += writeVarint(channelBuf.length, buf, offset)
     // 8. write the channel
@@ -1334,6 +1373,20 @@ function isInteger(n) {
 function isBufferSize(b, SIZE) {
   if (b4a.isBuffer(b)) {
     return b.length === SIZE
+  }
+  return false
+}
+
+function isBufferSizeMin(b, MIN_SIZE) {
+  if (b4a.isBuffer(b)) {
+    return b.length >= MIN_SIZE
+  }
+  return false
+}
+
+function isBufferSizeMax(b, MAX_SIZE) {
+  if (b4a.isBuffer(b)) {
+    return b.length <= MAX_SIZE
   }
   return false
 }
