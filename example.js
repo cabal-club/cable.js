@@ -1,14 +1,12 @@
-/* this file is not really a test bed so much as a rough playground */
-/* tape-based tests forthcoming :^) */ 
-
+/* this file is not really a test bed so much as a quick & dirty playground :) */
 const b4a = require("b4a")
 const crypto = require("./cryptography.js")
 const constants = require("./constants")
 const cable = require("./index.js")
 
 const CANCEL_REQUEST = cable.CANCEL_REQUEST
-const HASH_REQUEST = cable.HASH_REQUEST
-const DATA_RESPONSE = cable.DATA_RESPONSE
+const POST_REQUEST = cable.POST_REQUEST
+const POST_RESPONSE = cable.POST_RESPONSE
 const HASH_RESPONSE = cable.HASH_RESPONSE
 const TIME_RANGE_REQUEST = cable.TIME_RANGE_REQUEST
 const CHANNEL_STATE_REQUEST = cable.CHANNEL_STATE_REQUEST
@@ -32,6 +30,7 @@ const hashes = generateFakeHashes(3)
 const moreHashes = generateFakeHashes(3)
 const keypair = crypto.generateKeypair()
 const link = crypto.hash(b4a.from("not a message payload at all actually"))
+const ttl = 1
 
 // 0: hash response
 const bufHashRes = HASH_RESPONSE.create(crypto.generateReqID(), hashes)
@@ -40,22 +39,23 @@ console.log(bufHashRes)
 const objHashRes = HASH_RESPONSE.toJSON(bufHashRes)
 console.log(objHashRes)
 
-// 1: data response
-const requestedData = [LEAVE_POST.create(keypair.publicKey, keypair.secretKey, link, "introduction", 124)]
-const bufDataRes = DATA_RESPONSE.create(crypto.generateReqID(), requestedData)
-console.log("msg type of data response", cable.peek(bufDataRes))
+// 1: post response
+const requestedData = [LEAVE_POST.create(keypair.publicKey, keypair.secretKey, [link], "introduction", 124)]
+const bufDataRes = POST_RESPONSE.create(crypto.generateReqID(), requestedData)
+console.log("msg type of post response", cable.peek(bufDataRes))
 console.log(bufDataRes)
-const objDataRes = DATA_RESPONSE.toJSON(bufDataRes)
+const objDataRes = POST_RESPONSE.toJSON(bufDataRes)
 console.log(objDataRes)
 
 // 2: hash response
-const bufHashReq = HASH_REQUEST.create(crypto.generateReqID(), 3, hashes)
-console.log("msg type of hash request", cable.peek(bufHashReq))
-const objHashReq = HASH_REQUEST.toJSON(bufHashReq)
+const bufHashReq = POST_REQUEST.create(crypto.generateReqID(), 3, hashes)
+console.log("msg type of post request", cable.peek(bufHashReq))
+const objHashReq = POST_REQUEST.toJSON(bufHashReq)
 console.log(objHashReq)
 
 // 3: cancel request
-const b = CANCEL_REQUEST.create(crypto.generateReqID())
+const cancelId = crypto.generateReqID()
+const b = CANCEL_REQUEST.create(crypto.generateReqID(), ttl, cancelId)
 console.log("msg type of cancel request", cable.peek(b))
 const obj = CANCEL_REQUEST.toJSON(b)
 console.log(obj)
@@ -74,7 +74,7 @@ const objStateReq = CHANNEL_STATE_REQUEST.toJSON(bufStateReq)
 console.log(objStateReq)
 
 // 6: channel list request
-const bufListReq = CHANNEL_LIST_REQUEST.create(crypto.generateReqID(), 3, 90)
+const bufListReq = CHANNEL_LIST_REQUEST.create(crypto.generateReqID(), 3, 0, 90)
 console.log(bufListReq)
 console.log("msg type of channel list req", cable.peek(bufListReq))
 const objListReq = CHANNEL_LIST_REQUEST.toJSON(bufListReq)
@@ -82,7 +82,7 @@ console.log(objListReq)
 
 /* post types */
 // 0: post/text
-const bufText = TEXT_POST.create(keypair.publicKey, keypair.secretKey, link, "introduction", 123, "hello dar warld")
+const bufText = TEXT_POST.create(keypair.publicKey, keypair.secretKey, [link], "introduction", 123, "hello dar warld")
 console.log("post type of text/post", cable.peekPost(bufText))
 const messageSignatureCorrect = crypto.verify(bufText, keypair.publicKey)
 console.log(bufText)
@@ -92,8 +92,8 @@ const objText = TEXT_POST.toJSON(bufText)
 console.log(objText)
 
 // 1: post/delete
-const deleteHash = crypto.hash(bufText)
-const bufDelete = DELETE_POST.create(keypair.publicKey, keypair.secretKey, link, 321, deleteHash)
+const deleteHashes = [crypto.hash(bufText)]
+const bufDelete = DELETE_POST.create(keypair.publicKey, keypair.secretKey, [link], 321, deleteHashes)
 console.log("post type of text/delete", cable.peekPost(bufDelete))
 const messageSignatureCorrectDelete = crypto.verify(bufDelete, keypair.publicKey)
 console.log(bufDelete)
@@ -103,7 +103,7 @@ const objDelete = DELETE_POST.toJSON(bufDelete)
 console.log(objDelete)
 
 // 2: post/info
-const bufInfo = INFO_POST.create(keypair.publicKey, keypair.secretKey, link, 9321, "nick", "cabler")
+const bufInfo = INFO_POST.create(keypair.publicKey, keypair.secretKey, [link], 9321, "nick", "cabler")
 console.log("post type of text/info", cable.peekPost(bufInfo))
 const messageSignatureCorrectInfo = crypto.verify(bufInfo, keypair.publicKey)
 console.log(bufInfo)
@@ -113,7 +113,7 @@ const objInfo = INFO_POST.toJSON(bufInfo)
 console.log(objInfo)
 
 // 3: post/topic
-const bufTopic = TOPIC_POST.create(keypair.publicKey, keypair.secretKey, link, "introduction", 123, "introduce yourself to everyone else in this channel")
+const bufTopic = TOPIC_POST.create(keypair.publicKey, keypair.secretKey, [link], "introduction", 123, "introduce yourself to everyone else in this channel")
 console.log("post type of text/topic", cable.peekPost(bufTopic))
 const messageSignatureCorrectTopic = crypto.verify(bufTopic, keypair.publicKey)
 console.log(bufTopic)
@@ -123,7 +123,7 @@ const objTopic = TOPIC_POST.toJSON(bufTopic)
 console.log(objTopic)
 
 // 4: post/join
-const bufJoin = JOIN_POST.create(keypair.publicKey, keypair.secretKey, link, "introduction", 123)
+const bufJoin = JOIN_POST.create(keypair.publicKey, keypair.secretKey, [link], "introduction", 123)
 console.log("post type of text/join", cable.peekPost(bufJoin))
 const messageSignatureCorrectJoin = crypto.verify(bufJoin, keypair.publicKey)
 console.log(bufJoin)
@@ -133,7 +133,7 @@ const objJoin = JOIN_POST.toJSON(bufJoin)
 console.log(objJoin)
 
 // 5: post/leave
-const bufLeave = LEAVE_POST.create(keypair.publicKey, keypair.secretKey, link, "introduction", 124)
+const bufLeave = LEAVE_POST.create(keypair.publicKey, keypair.secretKey, [link], "introduction", 124)
 console.log("post type of text/leave", cable.peekPost(bufLeave))
 const messageSignatureCorrectLeave = crypto.verify(bufLeave, keypair.publicKey)
 console.log(bufLeave)
