@@ -320,7 +320,7 @@ class TIME_RANGE_REQUEST {
     // 4. write ttl
     offset += writeVarint(ttl, frame, offset)
     // convert to buf: yields correct length wrt utf-8 bytes + used when copying
-    const channelBuf = b4a.from(channel)
+    const channelBuf = b4a.from(channel, "utf8")
     validation.checkChannelName(channelBuf)
     // 5. write channel_len
     offset += writeVarint(channelBuf.length, frame, offset)
@@ -366,7 +366,7 @@ class TIME_RANGE_REQUEST {
     const channelBuf = buf.subarray(offset, offset + channelLen)
     offset += channelLen
     validation.checkChannelName(channelBuf)
-    const channel = channelBuf.toString()
+    const channel = channelBuf.toString("utf8")
     // 8. get timeStart
     const timeStart = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -406,7 +406,7 @@ class CHANNEL_STATE_REQUEST {
     // 4. write ttl
     offset += writeVarint(ttl, frame, offset)
     // convert to buf: yields correct length wrt utf-8 bytes + used when copying
-    const channelBuf = b4a.from(channel)
+    const channelBuf = b4a.from(channel, "utf8")
     validation.checkChannelName(channelBuf)
     // 5. write channel_len
     offset += writeVarint(channelBuf.length, frame, offset)
@@ -450,7 +450,7 @@ class CHANNEL_STATE_REQUEST {
     const channelBuf = buf.subarray(offset, offset + channelLen)
     offset += channelLen
     validation.checkChannelName(channelBuf)
-    const channel = channelBuf.toString()
+    const channel = channelBuf.toString("utf8")
     // 8. get limit
     const limit = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -549,7 +549,7 @@ class CHANNEL_LIST_RESPONSE {
     // 4. write channels
     channels.forEach(channel => {
       // convert to buf: yields correct length wrt utf-8 bytes + used when copying
-      const channelBuf = b4a.from(channel)
+      const channelBuf = b4a.from(channel, "utf8")
       validation.checkChannelName(channelBuf)
       // 4.1 write channelLen
       offset += writeVarint(channelBuf.length, frame, offset)
@@ -599,7 +599,7 @@ class CHANNEL_LIST_RESPONSE {
       const channelBuf = buf.subarray(offset, offset + channelLen)
       offset += channelLen
       validation.checkChannelName(channelBuf)
-      const channel = channelBuf.toString()
+      const channel = channelBuf.toString("utf8")
       channels.push(channel)
       remaining = msgLen - offset + msgLenBytes
     }
@@ -639,14 +639,14 @@ class TEXT_POST {
     // 6. write timestamp
     offset += writeVarint(timestamp, buf, offset)
     // convert to buf: yields correct length wrt utf-8 bytes + used when copying
-    const channelBuf = b4a.from(channel)
+    const channelBuf = b4a.from(channel, "utf8")
     validation.checkChannelName(channelBuf)
     // 7. write channelLen
     offset += writeVarint(channelBuf.length, buf, offset)
     // 8. write the channel
     offset += channelBuf.copy(buf, offset)
     // convert to buf: yields correct length wrt utf-8 bytes + used when copying
-    const textBuf = b4a.from(text)
+    const textBuf = b4a.from(text, "utf8")
     validation.checkPostText(textBuf)
     // 9. write textLen
     offset += writeVarint(textBuf.length, buf, offset)
@@ -700,7 +700,7 @@ class TEXT_POST {
     const channelBuf = buf.subarray(offset, offset + channelLen)
     offset += channelLen
     validation.checkChannelName(channelBuf)
-    const channel = channelBuf.toString()
+    const channel = channelBuf.toString("utf8")
     // 9. get textLen
     const textLen = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -708,7 +708,7 @@ class TEXT_POST {
     const textBuf = buf.subarray(offset, offset + textLen)
     offset += textLen
     validation.checkPostText(textBuf)
-    const text = textBuf.toString()
+    const text = textBuf.toString("utf8")
 
     return { publicKey, signature, links, postType, channel, timestamp, text }
   }
@@ -827,14 +827,14 @@ class INFO_POST {
     // 6. write timestamp
     offset += writeVarint(timestamp, buf, offset)
     // convert to buf: yields correct length wrt utf-8 bytes + used when copying
-    const keyBuf = b4a.from(key)
+    const keyBuf = b4a.from(key, "utf8")
     validation.checkInfoKey(keyBuf)
     // 7. write keyLen
     offset += writeVarint(keyBuf.length, buf, offset)
     // 8. write the key
     offset += keyBuf.copy(buf, offset)
     // convert to buf: yields correct length wrt utf-8 bytes + used when copying
-    const valueBuf = b4a.from(value)
+    const valueBuf = b4a.from(value, "utf8")
     validation.checkInfoValue(valueBuf)
     if (key === "name") {
       validation.checkUsername(valueBuf)
@@ -890,7 +890,7 @@ class INFO_POST {
     const keyBuf = buf.subarray(offset, offset + keyLen)
     offset += keyLen
     validation.checkInfoKey(keyBuf)
-    const key = keyBuf.toString()
+    const key = keyBuf.toString("utf8")
     // 9. get valueLen
     const valueLen = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -901,7 +901,7 @@ class INFO_POST {
     if (key === "name") {
       validation.checkUsername(valueBuf)
     }
-    const value = valueBuf.toString()
+    const value = valueBuf.toString("utf8")
 
     return { publicKey, signature, links, postType, timestamp, key, value }
   }
@@ -934,14 +934,14 @@ class TOPIC_POST {
     // 6. write timestamp
     offset += writeVarint(timestamp, buf, offset)
     // convert to buf: yields correct length wrt utf-8 bytes + used when copying
-    const channelBuf = b4a.from(channel)
+    const channelBuf = b4a.from(channel, "utf8")
     validation.checkChannelName(channelBuf)
     // 7. write channelLen
     offset += writeVarint(channelBuf.length, buf, offset)
     // 8. write the channel
     offset += channelBuf.copy(buf, offset)
     // convert to buf: yields correct length wrt utf-8 bytes + used when copying
-    const topicBuf = b4a.from(topic)
+    const topicBuf = b4a.from(topic, "utf8")
     validation.checkTopic(topicBuf)
     // 9. write topicLen
     offset += writeVarint(topicBuf.length, buf, offset)
@@ -994,7 +994,7 @@ class TOPIC_POST {
     const channelBuf = buf.subarray(offset, offset + channelLen)
     offset += channelLen
     validation.checkChannelName(channelBuf)
-    const channel = channelBuf.toString()
+    const channel = channelBuf.toString("utf8")
     // 9. get topicLen
     const topicLen = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -1002,7 +1002,7 @@ class TOPIC_POST {
     const topicBuf = buf.subarray(offset, offset + topicLen)
     offset += topicLen
     validation.checkTopic(topicBuf)
-    const topic = topicBuf.toString()
+    const topic = topicBuf.toString("utf8")
 
     return { publicKey, signature, links, postType, channel, timestamp, topic }
   }
@@ -1034,7 +1034,7 @@ class JOIN_POST {
     // 6. write timestamp
     offset += writeVarint(timestamp, buf, offset)
     // convert to buf: yields correct length wrt utf-8 bytes + used when copying
-    const channelBuf = b4a.from(channel)
+    const channelBuf = b4a.from(channel, "utf8")
     validation.checkChannelName(channelBuf)
     // 7. write channelLen
     offset += writeVarint(channelBuf.length, buf, offset)
@@ -1087,7 +1087,7 @@ class JOIN_POST {
     const channelBuf = buf.subarray(offset, offset + channelLen)
     offset += channelLen
     validation.checkChannelName(channelBuf)
-    const channel = channelBuf.toString()
+    const channel = channelBuf.toString("utf8")
 
     return { publicKey, signature, links, postType, channel, timestamp }
   }
@@ -1119,7 +1119,7 @@ class LEAVE_POST {
     // 6. write timestamp
     offset += writeVarint(timestamp, buf, offset)
     // convert to buf: yields correct length wrt utf-8 bytes + used when copying
-    const channelBuf = b4a.from(channel)
+    const channelBuf = b4a.from(channel, "utf8")
     validation.checkChannelName(channelBuf)
     // 7. write channelLen
     offset += writeVarint(channelBuf.length, buf, offset)
@@ -1172,7 +1172,7 @@ class LEAVE_POST {
     const channelBuf = buf.subarray(offset, offset + channelLen)
     offset += channelLen
     validation.checkChannelName(channelBuf)
-    const channel = channelBuf.toString()
+    const channel = channelBuf.toString("utf8")
 
     return { publicKey, signature, links, postType, channel, timestamp }
   }
