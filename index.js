@@ -4,6 +4,7 @@ const b4a = require("b4a")
 const constants = require("./constants.js")
 const varint = require("varint")
 const crypto = require("./cryptography.js")
+const validation = require("./validation.js")
 
 // TODO (2023-01-10):
 // * in the create methods: improve their resiliency by detecting when the pre-allocated buffer will not be large enough, and reallocate a larger buffer
@@ -23,9 +24,6 @@ function bufferExpected (param, size) {
 }
 function bufferExpectedMax (param, max, actual) {
   return new Error(`expected ${param} to be a buffer of at most ${max} bytes; was ${actual}`)
-}
-function codepointRangeExpected (param, min, max, actual) {
-  return new Error(`expected ${param} to be between ${min} and ${max} codepoints; was ${actual}`)
 }
 function integerExpected (param) {
   return new Error(`expected ${param} to be an integer`)
@@ -310,7 +308,6 @@ class TIME_RANGE_REQUEST {
     if (!isInteger(timeEnd)) { throw integerExpected("timeEnd") }
     if (!isInteger(limit)) { throw integerExpected("limit") }
 
-    let correctlySized
     // allocate default-sized buffer
     let frame = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
     let offset = 0
@@ -324,8 +321,7 @@ class TIME_RANGE_REQUEST {
     offset += writeVarint(ttl, frame, offset)
     // convert to buf: yields correct length wrt utf-8 bytes + used when copying
     const channelBuf = b4a.from(channel)
-    correctlySized = isBufferSizeMin(channelBuf, constants.CHANNEL_NAME_MIN_CODEPOINTS) && isBufferSizeMax(channelBuf, constants.CHANNEL_NAME_MAX_CODEPOINTS)
-    if (!correctlySized) { throw codepointRangeExpected("channel", constants.TOPIC_MIN_CODEPOINTS, constants.TOPIC_MAX_CODEPOINTS, channelBuf.length) }
+    validation.checkChannelName(channelBuf)
     // 5. write channel_len
     offset += writeVarint(channelBuf.length, frame, offset)
     // 6. write the channel
@@ -367,8 +363,10 @@ class TIME_RANGE_REQUEST {
     const channelLen = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
     // 7. use channelLen to slice out the channel
-    const channel = buf.subarray(offset, offset + channelLen).toString()
+    const channelBuf = buf.subarray(offset, offset + channelLen)
     offset += channelLen
+    validation.checkChannelName(channelBuf)
+    const channel = channelBuf.toString()
     // 8. get timeStart
     const timeStart = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -396,7 +394,6 @@ class CHANNEL_STATE_REQUEST {
     if (!isInteger(limit)) { throw integerExpected("limit") }
     if (!isInteger(updates)) { throw integerExpected("updates") }
 
-    let correctlySized
     // allocate default-sized buffer
     let frame = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
     let offset = 0
@@ -410,8 +407,7 @@ class CHANNEL_STATE_REQUEST {
     offset += writeVarint(ttl, frame, offset)
     // convert to buf: yields correct length wrt utf-8 bytes + used when copying
     const channelBuf = b4a.from(channel)
-    correctlySized = isBufferSizeMin(channelBuf, constants.CHANNEL_NAME_MIN_CODEPOINTS) && isBufferSizeMax(channelBuf, constants.CHANNEL_NAME_MAX_CODEPOINTS)
-    if (!correctlySized) { throw codepointRangeExpected("channel", constants.TOPIC_MIN_CODEPOINTS, constants.TOPIC_MAX_CODEPOINTS, channelBuf.length) }
+    validation.checkChannelName(channelBuf)
     // 5. write channel_len
     offset += writeVarint(channelBuf.length, frame, offset)
     // 6. write the channel
@@ -451,8 +447,10 @@ class CHANNEL_STATE_REQUEST {
     const channelLen = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
     // 7. use channelLen to slice out channel
-    const channel = buf.subarray(offset, offset + channelLen).toString()
+    const channelBuf = buf.subarray(offset, offset + channelLen)
     offset += channelLen
+    validation.checkChannelName(channelBuf)
+    const channel = channelBuf.toString()
     // 8. get limit
     const limit = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -539,7 +537,6 @@ class CHANNEL_LIST_RESPONSE {
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
     if (!isArrayString(channels)) { throw STRINGS_EXPECTED }
 
-    let correctlySized
     // allocate default-sized buffer
     let frame = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
     let offset = 0
@@ -553,8 +550,7 @@ class CHANNEL_LIST_RESPONSE {
     channels.forEach(channel => {
       // convert to buf: yields correct length wrt utf-8 bytes + used when copying
       const channelBuf = b4a.from(channel)
-      correctlySized = isBufferSizeMin(channelBuf, constants.CHANNEL_NAME_MIN_CODEPOINTS) && isBufferSizeMax(channelBuf, constants.CHANNEL_NAME_MAX_CODEPOINTS)
-      if (!correctlySized) { throw codepointRangeExpected("channel", constants.TOPIC_MIN_CODEPOINTS, constants.TOPIC_MAX_CODEPOINTS, channelBuf.length) }
+      validation.checkChannelName(channelBuf)
       // 4.1 write channelLen
       offset += writeVarint(channelBuf.length, frame, offset)
       // 4.2 write channel
@@ -600,8 +596,11 @@ class CHANNEL_LIST_RESPONSE {
       // if channelLen === 0 then we have no more channels in this response
       if (channelLen === 0) { break }
       // 6. use channelLen to slice out the channel
-      channels.push(buf.subarray(offset, offset + channelLen).toString())
+      const channelBuf = buf.subarray(offset, offset + channelLen)
       offset += channelLen
+      validation.checkChannelName(channelBuf)
+      const channel = channelBuf.toString()
+      channels.push(channel)
       remaining = msgLen - offset + msgLenBytes
     }
 
@@ -623,7 +622,6 @@ class TEXT_POST {
     if (!isInteger(timestamp)) { throw integerExpected("timestamp") }
     if (!isString(text)) { throw stringExpected("text") }
     
-    let correctlySized
     let offset = 0
     const buf = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
     // 1. write public key
@@ -642,16 +640,14 @@ class TEXT_POST {
     offset += writeVarint(timestamp, buf, offset)
     // convert to buf: yields correct length wrt utf-8 bytes + used when copying
     const channelBuf = b4a.from(channel)
-    correctlySized = isBufferSizeMin(channelBuf, constants.CHANNEL_NAME_MIN_CODEPOINTS) && isBufferSizeMax(channelBuf, constants.CHANNEL_NAME_MAX_CODEPOINTS)
-    if (!correctlySized) { throw codepointRangeExpected("channel", constants.TOPIC_MIN_CODEPOINTS, constants.TOPIC_MAX_CODEPOINTS, channelBuf.length) }
+    validation.checkChannelName(channelBuf)
     // 7. write channelLen
     offset += writeVarint(channelBuf.length, buf, offset)
     // 8. write the channel
     offset += channelBuf.copy(buf, offset)
     // convert to buf: yields correct length wrt utf-8 bytes + used when copying
     const textBuf = b4a.from(text)
-    correctlySized = isBufferSizeMax(textBuf, constants.POST_TEXT_MAX_BYTES)
-    if (!correctlySized) { throw new bufferExpectedMax("text", constants.POST_TEXT_MAX_BYTES, textBuf.len) }
+    validation.checkPostText(textBuf)
     // 9. write textLen
     offset += writeVarint(textBuf.length, buf, offset)
     // 10. write the text
@@ -661,10 +657,7 @@ class TEXT_POST {
     const message = buf.subarray(0, offset)
     // now, time to make a signature
     crypto.sign(message, secretKey)
-    const signatureCorrect = crypto.verify(message, publicKey)
-    if (!signatureCorrect) { 
-      throw new Error("could not verify created signature using keypair publicKey + secretKey") 
-    }
+    validation.checkSignature(message, publicKey)
 
     return message
   }
@@ -679,10 +672,7 @@ class TEXT_POST {
     const signature = buf.subarray(offset, offset + constants.SIGNATURE_SIZE)
     offset += constants.SIGNATURE_SIZE
     // verify signature is correct
-    const signatureCorrect = crypto.verify(buf, publicKey)
-    if (!signatureCorrect) { 
-      throw new Error("could not verify created signature using keypair publicKey + secretKey") 
-    }
+    validation.checkSignature(buf, publicKey)
     // 3. get numLinks
     const numLinks = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -707,14 +697,18 @@ class TEXT_POST {
     const channelLen = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
     // 8. use channelLen to get channel
-    const channel = buf.subarray(offset, offset + channelLen).toString()
+    const channelBuf = buf.subarray(offset, offset + channelLen)
     offset += channelLen
+    validation.checkChannelName(channelBuf)
+    const channel = channelBuf.toString()
     // 9. get textLen
     const textLen = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
     // 10. use textLen to get text
-    const text = buf.subarray(offset, offset + textLen).toString()
+    const textBuf = buf.subarray(offset, offset + textLen)
     offset += textLen
+    validation.checkPostText(textBuf)
+    const text = textBuf.toString()
 
     return { publicKey, signature, links, postType, channel, timestamp, text }
   }
@@ -756,10 +750,7 @@ class DELETE_POST {
     const message = buf.subarray(0, offset)
     // now, time to make a signature
     crypto.sign(message, secretKey)
-    const signatureCorrect = crypto.verify(message, publicKey)
-    if (!signatureCorrect) { 
-      throw new Error("could not verify created signature using keypair publicKey + secretKey") 
-    }
+    validation.checkSignature(message, publicKey)
 
     return message
   }
@@ -774,10 +765,7 @@ class DELETE_POST {
     const signature = buf.subarray(offset, offset + constants.SIGNATURE_SIZE)
     offset += constants.SIGNATURE_SIZE
     // verify signature is correct
-    const signatureCorrect = crypto.verify(buf, publicKey)
-    if (!signatureCorrect) { 
-      throw new Error("could not verify created signature using keypair publicKey + secretKey") 
-    }
+    validation.checkSignature(buf, publicKey)
     // 3. get numLinks
     const numLinks = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -822,7 +810,6 @@ class INFO_POST {
     if (!isString(key)) { throw stringExpected("key") }
     if (!isString(value)) { throw stringExpected("value") }
     
-    let correctlySized
     let offset = 0
     const buf = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
     // 1. write public key
@@ -841,19 +828,16 @@ class INFO_POST {
     offset += writeVarint(timestamp, buf, offset)
     // convert to buf: yields correct length wrt utf-8 bytes + used when copying
     const keyBuf = b4a.from(key)
-    correctlySized = isBufferSizeMin(keyBuf, constants.INFO_KEY_MIN_CODEPOINTS) && isBufferSizeMax(keyBuf, constants.INFO_KEY_MAX_CODEPOINTS)
-    if (!correctlySized) { throw codepointRangeExpected("key", constants.INFO_KEY_MIN_CODEPOINTS, constants.INFO_KEY_MAX_CODEPOINTS, keyBuf.length) }
+    validation.checkInfoKey(keyBuf)
     // 7. write keyLen
     offset += writeVarint(keyBuf.length, buf, offset)
     // 8. write the key
     offset += keyBuf.copy(buf, offset)
     // convert to buf: yields correct length wrt utf-8 bytes + used when copying
     const valueBuf = b4a.from(value)
-    correctlySized = isBufferSizeMax(valueBuf, constants.INFO_VALUE_MAX_BYTES)
-    if (!correctlySized) { throw new bufferExpectedMax("value", constants.INFO_VALUE_MAX_BYTES, textBuf.len) }
+    validation.checkInfoValue(valueBuf)
     if (key === "name") {
-    correctlySized = isBufferSizeMin(valueBuf, constants.USER_NAME_MIN_CODEPOINTS) && isBufferSizeMax(valueBuf, constants.USER_NAME_MAX_CODEPOINTS)
-    if (!correctlySized) { throw codepointRangeExpected("name", constants.USER_NAME_MIN_CODEPOINTS, constants.USER_NAME_MAX_CODEPOINTS, valueBuf.length) }
+      validation.checkUsername(valueBuf)
     }
     // 9. write valueLen
     offset += writeVarint(valueBuf.length, buf, offset)
@@ -864,10 +848,7 @@ class INFO_POST {
     const message = buf.subarray(0, offset)
     // now, time to make a signature
     crypto.sign(message, secretKey)
-    const signatureCorrect = crypto.verify(message, publicKey)
-    if (!signatureCorrect) { 
-      throw new Error("could not verify created signature using keypair publicKey + secretKey") 
-    }
+    validation.checkSignature(message, publicKey)
 
     return message
   }
@@ -882,10 +863,7 @@ class INFO_POST {
     const signature = buf.subarray(offset, offset + constants.SIGNATURE_SIZE)
     offset += constants.SIGNATURE_SIZE
     // verify signature is correct
-    const signatureCorrect = crypto.verify(buf, publicKey)
-    if (!signatureCorrect) { 
-      throw new Error("could not verify created signature using keypair publicKey + secretKey") 
-    }
+    validation.checkSignature(buf, publicKey)
     // 3. get numLinks
     const numLinks = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -909,19 +887,25 @@ class INFO_POST {
     const keyLen = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
     // 8. use keyLen to get key
-    const key = buf.subarray(offset, offset + keyLen).toString()
+    const keyBuf = buf.subarray(offset, offset + keyLen)
     offset += keyLen
+    validation.checkInfoKey(keyBuf)
+    const key = keyBuf.toString()
     // 9. get valueLen
     const valueLen = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
     // 10. use valueLen to get value
-    const value = buf.subarray(offset, offset + valueLen).toString()
+    const valueBuf = buf.subarray(offset, offset + valueLen)
     offset += valueLen
+    validation.checkInfoValue(valueBuf)
+    if (key === "name") {
+      validation.checkUsername(valueBuf)
+    }
+    const value = valueBuf.toString()
 
     return { publicKey, signature, links, postType, timestamp, key, value }
   }
 }
-
 
 class TOPIC_POST {
   static create(publicKey, secretKey, links, channel, timestamp, topic) {
@@ -933,7 +917,6 @@ class TOPIC_POST {
     if (!isInteger(timestamp)) { throw integerExpected("timestamp") }
     if (!isString(topic)) { throw stringExpected("topic") }
 
-    let correctlySized
     let offset = 0
     const buf = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
     // 1. write public key
@@ -952,16 +935,14 @@ class TOPIC_POST {
     offset += writeVarint(timestamp, buf, offset)
     // convert to buf: yields correct length wrt utf-8 bytes + used when copying
     const channelBuf = b4a.from(channel)
-    correctlySized = isBufferSizeMin(channelBuf, constants.CHANNEL_NAME_MIN_CODEPOINTS) && isBufferSizeMax(channelBuf, constants.CHANNEL_NAME_MAX_CODEPOINTS)
-    if (!correctlySized) { throw codepointRangeExpected("channel", constants.TOPIC_MIN_CODEPOINTS, constants.TOPIC_MAX_CODEPOINTS, channelBuf.length) }
+    validation.checkChannelName(channelBuf)
     // 7. write channelLen
     offset += writeVarint(channelBuf.length, buf, offset)
     // 8. write the channel
     offset += channelBuf.copy(buf, offset)
     // convert to buf: yields correct length wrt utf-8 bytes + used when copying
     const topicBuf = b4a.from(topic)
-    correctlySized = isBufferSizeMin(topicBuf, constants.TOPIC_MIN_CODEPOINTS) && isBufferSizeMax(topicBuf, constants.TOPIC_MAX_CODEPOINTS)
-    if (!correctlySized) { throw codepointRangeExpected("topic", constants.TOPIC_MIN_CODEPOINTS, constants.TOPIC_MAX_CODEPOINTS, topicBuf.length) }
+    validation.checkTopic(topicBuf)
     // 9. write topicLen
     offset += writeVarint(topicBuf.length, buf, offset)
     // 10. write the topic
@@ -971,10 +952,7 @@ class TOPIC_POST {
     const message = buf.subarray(0, offset)
     // now, time to make a signature
     crypto.sign(message, secretKey)
-    const signatureCorrect = crypto.verify(message, publicKey)
-    if (!signatureCorrect) { 
-      throw new Error("could not verify created signature using keypair publicKey + secretKey") 
-    }
+    validation.checkSignature(message, publicKey)
 
     return message
   }
@@ -989,10 +967,7 @@ class TOPIC_POST {
     const signature = buf.subarray(offset, offset + constants.SIGNATURE_SIZE)
     offset += constants.SIGNATURE_SIZE
     // verify signature is correct
-    const signatureCorrect = crypto.verify(buf, publicKey)
-    if (!signatureCorrect) { 
-      throw new Error("could not verify created signature using keypair publicKey + secretKey") 
-    }
+    validation.checkSignature(buf, publicKey)
     // 3. get numLinks
     const numLinks = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -1016,14 +991,18 @@ class TOPIC_POST {
     const channelLen = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
     // 8. use channelLen to get channel
-    const channel = buf.subarray(offset, offset + channelLen).toString()
+    const channelBuf = buf.subarray(offset, offset + channelLen)
     offset += channelLen
+    validation.checkChannelName(channelBuf)
+    const channel = channelBuf.toString()
     // 9. get topicLen
     const topicLen = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
     // 10. use topicLen to get topic
-    const topic = buf.subarray(offset, offset + topicLen).toString()
+    const topicBuf = buf.subarray(offset, offset + topicLen)
     offset += topicLen
+    validation.checkTopic(topicBuf)
+    const topic = topicBuf.toString()
 
     return { publicKey, signature, links, postType, channel, timestamp, topic }
   }
@@ -1038,7 +1017,6 @@ class JOIN_POST {
     if (!isString(channel)) { throw stringExpected("channel") }
     if (!isInteger(timestamp)) { throw integerExpected("timestamp") }
     
-    let correctlySized
     let offset = 0
     const buf = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
     // 1. write public key
@@ -1057,8 +1035,7 @@ class JOIN_POST {
     offset += writeVarint(timestamp, buf, offset)
     // convert to buf: yields correct length wrt utf-8 bytes + used when copying
     const channelBuf = b4a.from(channel)
-    correctlySized = isBufferSizeMin(channelBuf, constants.CHANNEL_NAME_MIN_CODEPOINTS) && isBufferSizeMax(channelBuf, constants.CHANNEL_NAME_MAX_CODEPOINTS)
-    if (!correctlySized) { throw codepointRangeExpected("channel", constants.TOPIC_MIN_CODEPOINTS, constants.TOPIC_MAX_CODEPOINTS, channelBuf.length) }
+    validation.checkChannelName(channelBuf)
     // 7. write channelLen
     offset += writeVarint(channelBuf.length, buf, offset)
     // 8. write the channel
@@ -1068,10 +1045,7 @@ class JOIN_POST {
     const message = buf.subarray(0, offset)
     // now, time to make a signature
     crypto.sign(message, secretKey)
-    const signatureCorrect = crypto.verify(message, publicKey)
-    if (!signatureCorrect) { 
-      throw new Error("could not verify created signature using keypair publicKey + secretKey") 
-    }
+    validation.checkSignature(message, publicKey)
 
     return message
   }
@@ -1086,10 +1060,7 @@ class JOIN_POST {
     const signature = buf.subarray(offset, offset + constants.SIGNATURE_SIZE)
     offset += constants.SIGNATURE_SIZE
     // verify signature is correct
-    const signatureCorrect = crypto.verify(buf, publicKey)
-    if (!signatureCorrect) { 
-      throw new Error("could not verify created signature using keypair publicKey + secretKey") 
-    }
+    validation.checkSignature(buf, publicKey)
     // 3. get numLinks
     const numLinks = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -1113,8 +1084,10 @@ class JOIN_POST {
     const channelLen = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
     // 8. use channelLen to get channel
-    const channel = buf.subarray(offset, offset + channelLen).toString()
+    const channelBuf = buf.subarray(offset, offset + channelLen)
     offset += channelLen
+    validation.checkChannelName(channelBuf)
+    const channel = channelBuf.toString()
 
     return { publicKey, signature, links, postType, channel, timestamp }
   }
@@ -1129,7 +1102,6 @@ class LEAVE_POST {
     if (!isString(channel)) { throw stringExpected("channel") }
     if (!isInteger(timestamp)) { throw integerExpected("timestamp") }
     
-    let correctlySized
     let offset = 0
     const buf = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
     // 1. write public key
@@ -1148,8 +1120,7 @@ class LEAVE_POST {
     offset += writeVarint(timestamp, buf, offset)
     // convert to buf: yields correct length wrt utf-8 bytes + used when copying
     const channelBuf = b4a.from(channel)
-    correctlySized = isBufferSizeMin(channelBuf, constants.CHANNEL_NAME_MIN_CODEPOINTS) && isBufferSizeMax(channelBuf, constants.CHANNEL_NAME_MAX_CODEPOINTS)
-    if (!correctlySized) { throw codepointRangeExpected("channel", constants.TOPIC_MIN_CODEPOINTS, constants.TOPIC_MAX_CODEPOINTS, channelBuf.length) }
+    validation.checkChannelName(channelBuf)
     // 7. write channelLen
     offset += writeVarint(channelBuf.length, buf, offset)
     // 8. write the channel
@@ -1159,10 +1130,7 @@ class LEAVE_POST {
     const message = buf.subarray(0, offset)
     // now, time to make a signature
     crypto.sign(message, secretKey)
-    const signatureCorrect = crypto.verify(message, publicKey)
-    if (!signatureCorrect) { 
-      throw new Error("could not verify created signature using keypair publicKey + secretKey") 
-    }
+    validation.checkSignature(message, publicKey)
 
     return message
   }
@@ -1177,10 +1145,7 @@ class LEAVE_POST {
     const signature = buf.subarray(offset, offset + constants.SIGNATURE_SIZE)
     offset += constants.SIGNATURE_SIZE
     // verify signature is correct
-    const signatureCorrect = crypto.verify(buf, publicKey)
-    if (!signatureCorrect) { 
-      throw new Error("could not verify created signature using keypair publicKey + secretKey") 
-    }
+    validation.checkSignature(buf, publicKey)
     // 3. get numLinks
     const numLinks = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -1204,8 +1169,10 @@ class LEAVE_POST {
     const channelLen = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
     // 8. use channelLen to get channel
-    const channel = buf.subarray(offset, offset + channelLen).toString()
+    const channelBuf = buf.subarray(offset, offset + channelLen)
     offset += channelLen
+    validation.checkChannelName(channelBuf)
+    const channel = channelBuf.toString()
 
     return { publicKey, signature, links, postType, channel, timestamp }
   }
@@ -1377,20 +1344,6 @@ function isBufferSize(b, SIZE) {
   return false
 }
 
-function isBufferSizeMin(b, MIN_SIZE) {
-  if (b4a.isBuffer(b)) {
-    return b.length >= MIN_SIZE
-  }
-  return false
-}
-
-function isBufferSizeMax(b, MAX_SIZE) {
-  if (b4a.isBuffer(b)) {
-    return b.length <= MAX_SIZE
-  }
-  return false
-}
-
 function isString (s) {
   return typeof s === "string"
 }
@@ -1430,6 +1383,7 @@ function isArrayHashes (arr) {
   }
   return false
 }
+
 
 function encodeVarintBuffer (n) {
   // take integer, return varint encoded buffer representation
