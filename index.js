@@ -386,13 +386,12 @@ class TIME_RANGE_REQUEST {
 }
 
 class CHANNEL_STATE_REQUEST {
-  static create(reqid, ttl, channel, limit, updates) {
-    if (arguments.length !== 5) { throw wrongNumberArguments(5, arguments.length, "create(reqid, ttl, channel, limit, updates)") }
+  static create(reqid, ttl, channel, future) {
+    if (arguments.length !== 4) { throw wrongNumberArguments(4, arguments.length, "create(reqid, ttl, channel, future)") }
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
     if (!isInteger(ttl)) { throw integerExpected("ttl") }
     if (!isString(channel)) { throw stringExpected("channel") }
-    if (!isInteger(limit)) { throw integerExpected("limit") }
-    if (!isInteger(updates)) { throw integerExpected("updates") }
+    if (!isInteger(future)) { throw integerExpected("future") }
 
     // allocate default-sized buffer
     let frame = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
@@ -412,16 +411,14 @@ class CHANNEL_STATE_REQUEST {
     offset += writeVarint(channelBuf.length, frame, offset)
     // 6. write the channel
     offset += channelBuf.copy(frame, offset)
-    // 7. write limit 
-    offset += writeVarint(limit, frame, offset)
-    // 8. write updates
-    offset += writeVarint(updates, frame, offset)
+    // 7. write future
+    offset += writeVarint(future, frame, offset)
     // resize buffer, since we have written everything except msglen
     frame = frame.subarray(0, offset)
     return prependMsgLen(frame)
   }
   // takes a cablegram buffer and returns the json object: 
-  // { msgLen, msgType, reqid, ttl, channel, limit, updates }
+  // { msgLen, msgType, reqid, ttl, channel, future }
   static toJSON(buf) {
     let offset = 0
     // 1. get msgLen
@@ -451,14 +448,11 @@ class CHANNEL_STATE_REQUEST {
     offset += channelLen
     validation.checkChannelName(channelBuf)
     const channel = channelBuf.toString("utf8")
-    // 8. get limit
-    const limit = decodeVarintSlice(buf, offset)
-    offset += varint.decode.bytes
-    // 9. get updates
-    const updates = decodeVarintSlice(buf, offset)
+    // 8. get future
+    const future = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
 
-    return { msgLen, msgType, reqid, ttl, channel, limit, updates }
+    return { msgLen, msgType, reqid, ttl, channel, future }
   }
 
   static decrementTTL(buf) {

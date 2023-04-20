@@ -226,18 +226,16 @@ test("5: channel state request", t => {
   const reqid = crypto.generateReqID()
   const channel = "default"
   const ttl = 3
-  const updates = 100
-  const limit = 20
+  const future = 0
 
-  const buf = CHANNEL_STATE_REQUEST.create(reqid, ttl, channel, limit, updates)
+  const buf = CHANNEL_STATE_REQUEST.create(reqid, ttl, channel, future)
   t.same(cable.peek(buf), constants.CHANNEL_STATE_REQUEST, "msg type should be channel state request")
   const obj = CHANNEL_STATE_REQUEST.toJSON(buf)
   t.same(obj.reqid, reqid, "reqid should be same")
   t.same(obj.msgType, constants.CHANNEL_STATE_REQUEST, "deserialized msg type should be channel state request")
   t.equal(obj.channel, channel, "channel should be same")
   t.equal(obj.ttl, ttl, "ttl should be same")
-  t.equal(obj.limit, limit, "limit should be same")
-  t.equal(obj.updates, updates, "updates should be same")
+  t.equal(obj.future, future, "future should be same")
   t.end()
 })
 
@@ -245,10 +243,9 @@ test("5: channel state request, decrement ttl", t => {
   const reqid = crypto.generateReqID()
   const channel = "default"
   const ttl = 3
-  const updates = 100
-  const limit = 20
+  const future = 100
 
-  const buf = CHANNEL_STATE_REQUEST.create(reqid, ttl, channel, limit, updates)
+  const buf = CHANNEL_STATE_REQUEST.create(reqid, ttl, channel, future)
   const newBuf = CHANNEL_STATE_REQUEST.decrementTTL(buf)
   t.same(cable.peek(newBuf), constants.CHANNEL_STATE_REQUEST, "msg type should be channel state request")
   const obj = CHANNEL_STATE_REQUEST.toJSON(newBuf)
@@ -256,8 +253,7 @@ test("5: channel state request, decrement ttl", t => {
   t.same(obj.msgType, constants.CHANNEL_STATE_REQUEST, "deserialized msg type should be channel state request")
   t.equal(obj.channel, channel, "channel should be same")
   t.equal(obj.ttl, ttl - 1, "ttl should be one less than originally")
-  t.equal(obj.limit, limit, "limit should be same")
-  t.equal(obj.updates, updates, "updates should be same")
+  t.equal(obj.future, future, "future should be same")
   t.end()
 })
 
@@ -444,7 +440,7 @@ test("cablegrams with same input should be identical", t => {
   const timeStart = 0
   const timeEnd = 100
   const limit = 20
-  const updates = 99
+  const future = 0
   const channel = "test-channel"
   const offset = 0
 
@@ -454,7 +450,7 @@ test("cablegrams with same input should be identical", t => {
   grams.push(["post response", POST_RESPONSE.create(reqid, requestedPosts), POST_RESPONSE.create(reqid, requestedPosts)])
   grams.push(["cancel request", CANCEL_REQUEST.create(reqid, ttl, cancelid), CANCEL_REQUEST.create(reqid, ttl, cancelid)])
   grams.push(["channel time range request", TIME_RANGE_REQUEST.create(reqid, ttl, channel, timeStart, timeEnd, limit), TIME_RANGE_REQUEST.create(reqid, ttl, channel, timeStart, timeEnd, limit)])
-  grams.push(["channel state request", CHANNEL_STATE_REQUEST.create(reqid, ttl, channel, limit, updates), CHANNEL_STATE_REQUEST.create(reqid, ttl, channel, limit, updates)])
+  grams.push(["channel state request", CHANNEL_STATE_REQUEST.create(reqid, ttl, channel, future), CHANNEL_STATE_REQUEST.create(reqid, ttl, channel, future)])
   grams.push(["channel list request", CHANNEL_LIST_REQUEST.create(reqid, ttl, offset, limit), CHANNEL_LIST_REQUEST.create(reqid, ttl, offset, limit)])
 
   grams.forEach(gram => {

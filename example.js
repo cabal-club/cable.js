@@ -67,7 +67,7 @@ const objRangeReq = TIME_RANGE_REQUEST.toJSON(bufRangeReq)
 console.log(objRangeReq)
 
 // 5: channel state request
-const bufStateReq = CHANNEL_STATE_REQUEST.create(crypto.generateReqID(), 3, "dev", 12, 9)
+const bufStateReq = CHANNEL_STATE_REQUEST.create(crypto.generateReqID(), 3, "dev", 0)
 console.log(bufStateReq)
 console.log("msg type of channel state req", cable.peek(bufStateReq))
 const objStateReq = CHANNEL_STATE_REQUEST.toJSON(bufStateReq)
