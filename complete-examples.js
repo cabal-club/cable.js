@@ -2,7 +2,8 @@
  * outputs each request, response, and post type of the cable rev 2023-04 spec, one json object per line.
  * the json object contains the following keys:
  * {
- *   "name": the common name of the message or post type (e.g. "hash response" or "post/text")
+ *   "name": the common name of the message or post type (e.g. "hash response" or "post/text"), for type
+ *           "generated-data" the name is set to "initial-parameters"
  *   "type": strings used are one of:
  *     * "request": a cable request
  *     * "response": a cable response
@@ -14,6 +15,9 @@
  *   "obj": an object representation of the message or post type. conventions used are camelCase over the spec's
  *        underscores, with deviations in that reqid and cancelid are all lowercase)
  * }
+ *
+ * NOTE: Every instance of the key "data" has as its value a serialized Uint8Array, representing binary data for its
+ * parent (e.g. publicKey, hashes, reqid)
  *
 */
 const b4a = require("b4a")
@@ -62,11 +66,21 @@ const topic = "introduce yourself to the friendly crowd of likeminded folx"
 const reqid = crypto.generateReqID()
 const cancelid = crypto.generateReqID()
 
-function print(obj) {
-  console.log(JSON.stringify(obj))
+// replace all Buffer instances when stringifying with Uint8Array
+function replacer(key, value) {
+  if (this.type === "Buffer") {
+    if (value === "Buffer") { return undefined }
+    return new Uint8Array(value)
+  } else {
+    return value
+  }
 }
 
-print({name: "data", type: "generated-data", id: -1, binary: null, obj: {
+function print(obj) {
+  console.log(JSON.stringify(obj, replacer))
+}
+
+print({name: "initial-parameters", type: "generated-data", id: -1, binary: null, obj: {
   keypair,
   hashes,
   reqid,
