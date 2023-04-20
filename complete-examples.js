@@ -67,17 +67,58 @@ const reqid = crypto.generateReqID()
 const cancelid = crypto.generateReqID()
 
 // replace all Buffer instances when stringifying with Uint8Array
-function replacer(key, value) {
-  if (this.type === "Buffer") {
-    if (value === "Buffer") { return undefined }
-    return new Uint8Array(value)
-  } else {
-    return value
-  }
+// function replacer(key, value) {
+//   if (this.type === "Buffer") {
+//     if (value === "Buffer") { return undefined }
+//     return new Uint8Array(value)
+//   } else {
+//     return value
+//   }
+// }
+
+function transformBuffer(incomingBuffer) {
+  return incomingBuffer.toString("hex")
+}
+
+function traverse (coll, res) {
+  Object.entries(coll).forEach(([key, value]) => {
+    if (Buffer.isBuffer(value)) { 
+      res[key] = transformBuffer(value)
+    } else if (value && typeof value === "object") { 
+      if (Array.isArray(value)) {
+        value = traverseArray(value)
+        res[key] = value
+      } else {
+        const obj = {}
+        traverse(value, obj)
+        res[key] = obj
+      }
+    } else {
+      res[key] = value
+    }
+  })
+}
+function traverseArray (coll) {
+  const arr = coll.map(item => {
+    if (Buffer.isBuffer(item)) {
+      return transformBuffer(item)
+    } else if (item && typeof item === "object" && Array.isArray(item)) {
+      return traverseArray(item)
+    } else if (item && typeof item === "object" && !Array.isArray(item)) {
+      const obj = {}
+      traverse(item, obj)
+      return obj
+    } else {
+      return item
+    }
+  })
+  return arr
 }
 
 function print(obj) {
-  console.log(JSON.stringify(obj, replacer))
+  const result = {}
+  traverse(obj, result)
+  console.log(JSON.stringify(result))
 }
 
 print({name: "initial-parameters", type: "generated-data", id: -1, binary: null, obj: {

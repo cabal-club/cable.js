@@ -794,6 +794,7 @@ class DELETE_POST {
   }
 }
   
+// TODO (2023-04-20): take a list of [key, value] instead of a single pair
 class INFO_POST {
   static create(publicKey, secretKey, links, timestamp, key, value) {
     if (arguments.length !== 6) { throw wrongNumberArguments(6, arguments.length, "create(publicKey, secretKey, links, timestamp, key, value)") }
