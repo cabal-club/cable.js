@@ -31,6 +31,9 @@ function integerExpected (param) {
 function stringExpected (param) {
   return new Error(`expected ${param} to be a string`)
 }
+function ttlRangeExpected (param) {
+  return new Error(`expected ttl to be between 0 and 16, was ${param}`)
+}
 
 function wrongNumberArguments(count, actual, functionSignature) {
  return new Error(`${functionSignature} expected ${count} arguments but received ${actual}`) 
@@ -174,6 +177,7 @@ class POST_REQUEST {
     if (arguments.length !== 3) { throw wrongNumberArguments(3, arguments.length, "create(reqid, ttl, hashes)") }
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
     if (!isInteger(ttl)) { throw integerExpected("ttl") }
+    if (!ttlRangecorrect(ttl)) { throw ttlRangeExpected(ttl) }
     if (!isArrayHashes(hashes)) { throw HASHES_EXPECTED }
 
     // allocate default-sized buffer
@@ -221,6 +225,7 @@ class POST_REQUEST {
     // 5. get ttl
     const ttl = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
+    if (!ttlRangecorrect(ttl)) { throw ttlRangeExpected(ttl) }
     // 6. get hashCount
     const hashCount = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -246,6 +251,7 @@ class CANCEL_REQUEST {
     if (arguments.length !== 3) { throw wrongNumberArguments(3, arguments.length, "create(reqid, ttl, cancelid)") }
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
     if (!isInteger(ttl)) { throw integerExpected("ttl") }
+    if (!ttlRangecorrect(ttl)) { throw ttlRangeExpected(ttl) }
     if (!isBufferSize(cancelid, constants.REQID_SIZE)) { throw bufferExpected("cancelid", constants.REQID_SIZE) }
 
     // allocate default-sized buffer
@@ -290,6 +296,7 @@ class CANCEL_REQUEST {
     // 5. get ttl (unused for cancel request)
     const ttl = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
+    if (!ttlRangecorrect(ttl)) { throw ttlRangeExpected(ttl) }
     // 6. get cancelid
     const cancelid = buf.subarray(offset, offset+constants.REQID_SIZE)
     offset += constants.REQID_SIZE
@@ -303,6 +310,7 @@ class TIME_RANGE_REQUEST {
     if (arguments.length !== 6) { throw wrongNumberArguments(6, arguments.length, "create(reqid, ttl, channel, timeStart, timeEnd, limit)") }
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
     if (!isInteger(ttl)) { throw integerExpected("ttl") }
+    if (!ttlRangecorrect(ttl)) { throw ttlRangeExpected(ttl) }
     if (!isString(channel)) { throw stringExpected("channel") }
     if (!isInteger(timeStart)) { throw integerExpected("timeStart") }
     if (!isInteger(timeEnd)) { throw integerExpected("timeEnd") }
@@ -359,6 +367,7 @@ class TIME_RANGE_REQUEST {
     // 5. get ttl
     const ttl = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
+    if (!ttlRangecorrect(ttl)) { throw ttlRangeExpected(ttl) }
     // 6. get channelLen
     const channelLen = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -390,6 +399,7 @@ class CHANNEL_STATE_REQUEST {
     if (arguments.length !== 4) { throw wrongNumberArguments(4, arguments.length, "create(reqid, ttl, channel, future)") }
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
     if (!isInteger(ttl)) { throw integerExpected("ttl") }
+    if (!ttlRangecorrect(ttl)) { throw ttlRangeExpected(ttl) }
     if (!isString(channel)) { throw stringExpected("channel") }
     if (!isInteger(future)) { throw integerExpected("future") }
 
@@ -440,6 +450,7 @@ class CHANNEL_STATE_REQUEST {
     // 5. get ttl
     const ttl = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
+    if (!ttlRangecorrect(ttl)) { throw ttlRangeExpected(ttl) }
     // 6. get channelLen
     const channelLen = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -465,6 +476,7 @@ class CHANNEL_LIST_REQUEST {
     if (arguments.length !== 4) { throw wrongNumberArguments(4, arguments.length, "create(reqid, ttl, offset, limit)") }
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
     if (!isInteger(ttl)) { throw integerExpected("ttl") }
+    if (!ttlRangecorrect(ttl)) { throw ttlRangeExpected(ttl) }
     if (!isInteger(argOffset)) { throw integerExpected("offset") }
     if (!isInteger(limit)) { throw integerExpected("limit") }
 
@@ -510,6 +522,7 @@ class CHANNEL_LIST_REQUEST {
     // 5. get ttl
     const ttl = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
+    if (!ttlRangecorrect(ttl)) { throw ttlRangeExpected(ttl) }
     // 6. get offset
     const argOffset = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -599,10 +612,6 @@ class CHANNEL_LIST_RESPONSE {
     }
 
     return { msgLen, msgType, reqid, channels }
-  }
-
-  static decrementTTL(buf) {
-    return insertNewTTL(buf, constants.CHANNEL_LIST_REQUEST)
   }
 }
 
@@ -1330,6 +1339,10 @@ function decodeVarintSlice (frame, offset) {
 
 function isInteger(n) {
   return Number.isInteger(n)
+}
+
+function ttlRangecorrect(ttl) {
+  return ttl >= 0 && ttl <= 16
 }
 
 function isBufferSize(b, SIZE) {
