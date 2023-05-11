@@ -1184,7 +1184,7 @@ class LEAVE_POST {
 
 
 // peek returns the buf type of a cablegram
-function peek (buf) {
+function peekMessage (buf) {
   // decode msg len, and discard
   decodeVarintSlice(buf, 0)
   const offset = varint.decode.bytes
@@ -1248,7 +1248,7 @@ function parsePost (buf) {
 
 // a message is either a request or a response; not a post (for posts, see parsePost)
 function parseMessage (buf) {
-  const msgType = peek(buf)
+  const msgType = peekMessage(buf)
   let obj
   switch (msgType) {
     case constants.HASH_RESPONSE:
@@ -1424,7 +1424,7 @@ module.exports = {
   JOIN_POST,
   LEAVE_POST,
 
-  peek,
+  peekMessage,
   peekReqid,
   peekPost,
   parsePost,

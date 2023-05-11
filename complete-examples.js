@@ -144,43 +144,43 @@ print({name: "initial-parameters", type: "generated-data", id: -1, binary: null,
 // 3: cancel request
 const b = CANCEL_REQUEST.create(reqid, ttl, cancelid)
 const obj = CANCEL_REQUEST.toJSON(b)
-print({name: "cancel request", type: "request", id: cable.peek(b), binary: b, obj: obj})
+print({name: "cancel request", type: "request", id: cable.peekMessage(b), binary: b, obj: obj})
 
 // 4: channel time range request
 const bufRangeReq = TIME_RANGE_REQUEST.create(reqid, ttl, channel, timeStart, timeEnd, limit)
 const objRangeReq = TIME_RANGE_REQUEST.toJSON(bufRangeReq)
-print({name: "channel time range request", type: "request", id: cable.peek(bufRangeReq), binary: bufRangeReq, obj: objRangeReq})
+print({name: "channel time range request", type: "request", id: cable.peekMessage(bufRangeReq), binary: bufRangeReq, obj: objRangeReq})
 
 // 5: channel state request
 const bufStateReq = CHANNEL_STATE_REQUEST.create(reqid, ttl, channel, future)
 const objStateReq = CHANNEL_STATE_REQUEST.toJSON(bufStateReq)
-print({ name: "channel state request", type: "request", id: cable.peek(bufStateReq), binary: bufStateReq, obj: objStateReq })
+print({ name: "channel state request", type: "request", id: cable.peekMessage(bufStateReq), binary: bufStateReq, obj: objStateReq })
 
 // 6: channel list request
 const bufListReq = CHANNEL_LIST_REQUEST.create(reqid, ttl, offset, limit)
 const objListReq = CHANNEL_LIST_REQUEST.toJSON(bufListReq)
-print({ name: "channel list request", type: "request", id: cable.peek(bufListReq), binary: bufListReq, obj: objListReq })
+print({ name: "channel list request", type: "request", id: cable.peekMessage(bufListReq), binary: bufListReq, obj: objListReq })
 
 // 0: hash response
 const bufHashRes = HASH_RESPONSE.create(reqid, hashes)
 const objHashRes = HASH_RESPONSE.toJSON(bufHashRes)
-print({ name: "hash response", type: "response", id: cable.peek(bufHashRes), binary: bufHashRes, obj: objHashRes })
+print({ name: "hash response", type: "response", id: cable.peekMessage(bufHashRes), binary: bufHashRes, obj: objHashRes })
 
 // 1: post response
 const requestedData = [LEAVE_POST.create(keypair.publicKey, keypair.secretKey, links, channel, timestamp)]
 const bufDataRes = POST_RESPONSE.create(reqid, requestedData)
 const objDataRes = POST_RESPONSE.toJSON(bufDataRes)
-print({ name: "post response", type: "response", id: cable.peek(bufDataRes), binary: bufDataRes, obj: objDataRes })
+print({ name: "post response", type: "response", id: cable.peekMessage(bufDataRes), binary: bufDataRes, obj: objDataRes })
 
 // 7: channel list response
 const bufListRes = CHANNEL_LIST_RESPONSE.create(reqid, channels)
 const objListRes = CHANNEL_LIST_RESPONSE.toJSON(bufListRes)
-print({ name: "channel list response", type: "response", id: cable.peek(bufListRes), binary: bufListRes, obj: objListRes })
+print({ name: "channel list response", type: "response", id: cable.peekMessage(bufListRes), binary: bufListRes, obj: objListRes })
 
 // 2: hash response
 const bufHashReq = POST_REQUEST.create(reqid, ttl, hashes)
 const objHashReq = POST_REQUEST.toJSON(bufHashReq)
-print({ name: "hash response", type: "response", id: cable.peek(bufHashReq), binary: bufHashReq, obj: objHashReq })
+print({ name: "hash response", type: "response", id: cable.peekMessage(bufHashReq), binary: bufHashReq, obj: objHashReq })
 
 /* post types */
 // 0: post/text

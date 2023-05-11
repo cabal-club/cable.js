@@ -36,33 +36,33 @@ const ttl = 1
 // 3: cancel request
 const cancelId = crypto.generateReqID()
 const b = CANCEL_REQUEST.create(crypto.generateReqID(), ttl, cancelId)
-console.log("msg type of cancel request", cable.peek(b))
+console.log("msg type of cancel request", cable.peekMessage(b))
 const obj = CANCEL_REQUEST.toJSON(b)
 console.log(obj)
 
 // 4: channel time range request
 const bufRangeReq = TIME_RANGE_REQUEST.create(crypto.generateReqID(), 3, "default", 0, 100, 20)
-console.log("msg type of time range request", cable.peek(bufRangeReq))
+console.log("msg type of time range request", cable.peekMessage(bufRangeReq))
 const objRangeReq = TIME_RANGE_REQUEST.toJSON(bufRangeReq)
 console.log(objRangeReq)
 
 // 5: channel state request
 const bufStateReq = CHANNEL_STATE_REQUEST.create(crypto.generateReqID(), 3, "dev", 0)
 console.log(bufStateReq)
-console.log("msg type of channel state req", cable.peek(bufStateReq))
+console.log("msg type of channel state req", cable.peekMessage(bufStateReq))
 const objStateReq = CHANNEL_STATE_REQUEST.toJSON(bufStateReq)
 console.log(objStateReq)
 
 // 6: channel list request
 const bufListReq = CHANNEL_LIST_REQUEST.create(crypto.generateReqID(), 3, 0, 90)
 console.log(bufListReq)
-console.log("msg type of channel list req", cable.peek(bufListReq))
+console.log("msg type of channel list req", cable.peekMessage(bufListReq))
 const objListReq = CHANNEL_LIST_REQUEST.toJSON(bufListReq)
 console.log(objListReq)
 
 // 0: hash response
 const bufHashRes = HASH_RESPONSE.create(crypto.generateReqID(), hashes)
-console.log("msg type of hash response", cable.peek(bufHashRes))
+console.log("msg type of hash response", cable.peekMessage(bufHashRes))
 console.log(bufHashRes)
 const objHashRes = HASH_RESPONSE.toJSON(bufHashRes)
 console.log(objHashRes)
@@ -70,7 +70,7 @@ console.log(objHashRes)
 // 1: post response
 const requestedData = [LEAVE_POST.create(keypair.publicKey, keypair.secretKey, [link], "introduction", 124)]
 const bufDataRes = POST_RESPONSE.create(crypto.generateReqID(), requestedData)
-console.log("msg type of post response", cable.peek(bufDataRes))
+console.log("msg type of post response", cable.peekMessage(bufDataRes))
 console.log(bufDataRes)
 const objDataRes = POST_RESPONSE.toJSON(bufDataRes)
 console.log(objDataRes)
@@ -78,13 +78,13 @@ console.log(objDataRes)
 // 7: channel list response
 const bufListRes = CHANNEL_LIST_RESPONSE.create(crypto.generateReqID(), ["introduction", "default"])
 console.log(bufListRes)
-console.log("msg type of channel list response", cable.peek(bufListRes))
+console.log("msg type of channel list response", cable.peekMessage(bufListRes))
 const objListRes = CHANNEL_LIST_RESPONSE.toJSON(bufListRes)
 console.log(objListRes)
 
 // 2: hash response
 const bufHashReq = POST_REQUEST.create(crypto.generateReqID(), 3, hashes)
-console.log("msg type of post request", cable.peek(bufHashReq))
+console.log("msg type of post request", cable.peekMessage(bufHashReq))
 const objHashReq = POST_REQUEST.toJSON(bufHashReq)
 console.log(objHashReq)
 
