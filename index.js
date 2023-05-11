@@ -7,7 +7,7 @@ const crypto = require("./cryptography.js")
 const validation = require("./validation.js")
 
 // TODO (2023-01-10):
-// * in the create methods: improve their resiliency by detecting when the pre-allocated buffer will not be large enough, and reallocate a larger buffer
+// in the create methods: improve resiliency by detecting when the pre-allocated buffer will not be large enough, and reallocate a larger buffer
 
 // TODO (2023-01-11): regarding byte size of a string
 // is it enough to simply do str.length to get the correct byte size? any gotchas?
@@ -15,7 +15,7 @@ const validation = require("./validation.js")
 // TODO (2023-01-11): 
 // would like to abstract away `offset += varint.decode.bytes` in case we swap library / opt for self-authored standard
 
-// TODO (2023-04-18): introduce specific error classes to be able to distinguish between e.g. missing # of paramenters (fatal impl error) and lengths of strings (user behaviour, recoverable)
+// TODO (2023-04-18): introduce specific error classes to be able to distinguish between e.g. missing # of parameters (fatal impl error) and lengths of strings (user behaviour, recoverable)
 const LINKS_EXPECTED = new Error("expected links to contain an array of hash-sized buffers")
 const HASHES_EXPECTED = new Error("expected hashes to contain an array of hash-sized buffers")
 const STRINGS_EXPECTED = new Error("expected channels to contain an array of strings")
@@ -63,7 +63,7 @@ class HASH_RESPONSE {
     frame = frame.subarray(0, offset)
     return prependMsgLen(frame)
   }
-  // takes a cablegram buffer and returns the json object: 
+  // takes a message buffer and returns the json object: 
   // { msgLen, msgType, reqid, hashes }
   static toJSON(buf) {
     let offset = 0
@@ -125,7 +125,7 @@ class POST_RESPONSE {
     frame = frame.subarray(0, offset)
     return prependMsgLen(frame)
   }
-  // takes a cablegram buffer and returns the json object: 
+  // takes a message buffer and returns the json object: 
   // { msgLen, msgType, reqid, data}
   static toJSON(buf) {
     let offset = 0
@@ -150,7 +150,7 @@ class POST_RESPONSE {
     // 5. remaining buffer consists of [postLen, post] segments
     // read until it runs out
     let posts = []
-    // msgLen tells us the number of bytes in the remaining cablegram i.e. *excluding* msgLen, 
+    // msgLen tells us the number of bytes in the remaining message i.e. *excluding* msgLen, 
     // so we need to account for that by adding msgLenBytes
     let remaining = msgLen - offset + msgLenBytes
     while (remaining > 0) {
@@ -172,7 +172,7 @@ class POST_RESPONSE {
 const EMPTY_CIRCUIT_ID = b4a.alloc(4).fill(0)
 
 class POST_REQUEST {
-  // constructs a cablegram buffer using the incoming arguments
+  // constructs a message buffer using the incoming arguments
   static create(reqid, ttl, hashes) {
     if (arguments.length !== 3) { throw wrongNumberArguments(3, arguments.length, "create(reqid, ttl, hashes)") }
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
@@ -202,7 +202,7 @@ class POST_REQUEST {
     return prependMsgLen(frame)
   }
 
-  // takes a cablegram buffer and returns the json object: 
+  // takes a message buffer and returns the json object: 
   // { msgLen, msgType, reqid, ttl, hashes }
   static toJSON(buf) {
     let offset = 0
@@ -246,7 +246,7 @@ class POST_REQUEST {
 }
 
 class CANCEL_REQUEST {
-  // constructs a cablegram buffer using the incoming arguments
+  // constructs a message buffer using the incoming arguments
   static create(reqid, ttl, cancelid) {
     if (arguments.length !== 3) { throw wrongNumberArguments(3, arguments.length, "create(reqid, ttl, cancelid)") }
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
@@ -273,7 +273,7 @@ class CANCEL_REQUEST {
     return prependMsgLen(frame)
   }
 
-  // takes a cablegram buffer and returns the json object: 
+  // takes a message buffer and returns the json object: 
   // { msgLen, msgType, reqid, cancelid }
   static toJSON(buf) {
     let offset = 0
@@ -345,7 +345,7 @@ class TIME_RANGE_REQUEST {
     return prependMsgLen(frame)
   }
   
-  // takes a cablegram buffer and returns the json object: 
+  // takes a message buffer and returns the json object: 
   // { msgLen, msgType, reqid, ttl, channel, timeStart, timeEnd, limit }
   static toJSON(buf) {
     let offset = 0
@@ -427,7 +427,7 @@ class CHANNEL_STATE_REQUEST {
     frame = frame.subarray(0, offset)
     return prependMsgLen(frame)
   }
-  // takes a cablegram buffer and returns the json object: 
+  // takes a message buffer and returns the json object: 
   // { msgLen, msgType, reqid, ttl, channel, future }
   static toJSON(buf) {
     let offset = 0
@@ -499,7 +499,7 @@ class CHANNEL_LIST_REQUEST {
     frame = frame.subarray(0, offset)
     return prependMsgLen(frame)
   }
-  // takes a cablegram buffer and returns the json object: 
+  // takes a message buffer and returns the json object: 
   // { msgLen, msgType, reqid, ttl, limit }
   static toJSON(buf) {
     let offset = 0
@@ -569,7 +569,7 @@ class CHANNEL_LIST_RESPONSE {
     frame = frame.subarray(0, offset)
     return prependMsgLen(frame)
   }
-  // takes a cablegram buffer and returns the json object: 
+  // takes a message buffer and returns the json object: 
   // { msgLen, msgType, reqid, channels }
   static toJSON(buf) {
     let offset = 0
@@ -593,7 +593,7 @@ class CHANNEL_LIST_RESPONSE {
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
     // 5. get channels
     const channels = []
-    // msgLen tells us the number of bytes in the remaining cablegram i.e. *excluding* msgLen, 
+    // msgLen tells us the number of bytes in the remaining message i.e. *excluding* msgLen, 
     // so we need to account for that by adding msgLenBytes
     let remaining = msgLen - offset + msgLenBytes
     while (remaining > 0) {
@@ -1183,7 +1183,7 @@ class LEAVE_POST {
 }
 
 
-// peek returns the buf type of a cablegram
+// peek returns the buf type of a message
 function peekMessage (buf) {
   // decode msg len, and discard
   decodeVarintSlice(buf, 0)
