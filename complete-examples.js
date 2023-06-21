@@ -49,7 +49,14 @@ function generateFakeHashes (amount) {
 }
 
 const hashes = generateFakeHashes(3)
-const keypair = crypto.generateKeypair()
+
+// derived from const keypair = crypto.generateKeypair()
+// and then running: print(keypair)
+const keypair = {
+  "publicKey": b4a.from("25b272a71555322d40efe449a7f99af8fd364b92d350f1664481b2da340a02d0", "hex"), 
+  "secretKey": b4a.from("f12a0b72a720f9ce6898a1f4c685bee4cc838102143db98f467c5512a726e69225b272a71555322d40efe449a7f99af8fd364b92d350f1664481b2da340a02d0", "hex")
+}
+
 const links = [crypto.hash(b4a.from("fake payload"))]
 const ttl = 1
 const limit = 20
