@@ -38,7 +38,7 @@ type you want with the parameters required by that type. The result will be a
 * a [Uint8Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array) when running in the browser
 
 #### Request-type messages
-```
+```js
 const buf = POST_REQUEST.create(reqid, ttl, hashes)
 const buf = CANCEL_REQUEST.create(reqid, ttl, cancelid)
 const buf = TIME_RANGE_REQUEST.create(reqid, ttl, channel, timeStart, timeEnd, limit)
@@ -46,13 +46,13 @@ const buf = CHANNEL_STATE_REQUEST.create(reqid, ttl, channel, future)
 const buf = CHANNEL_LIST_REQUEST.create(reqid, ttl, argOffset, limit)
 ```
 #### Response-type messages
-```
+```js
 const buf = HASH_RESPONSE.create(reqid, hashes)
 const buf = POST_RESPONSE.create(reqid, posts)
 const buf = CHANNEL_LIST_RESPONSE.create(reqid, channels)
 ```
 #### Post types
-```
+```js
 const buf = TEXT_POST.create(publicKey, secretKey, links, channel, timestamp, text)
 const buf = DELETE_POST.create(publicKey, secretKey, links, timestamp, hashes)
 const buf = INFO_POST.create(publicKey, secretKey, links, timestamp, key, value)
@@ -68,7 +68,7 @@ object.
 For the fields of each produced object, see section Examples below.
 
 #### Request-type messages
-```
+```js
 const obj = POST_REQUEST.toJSON(buf)
 const obj = CANCEL_REQUEST.toJSON(buf)
 const obj = TIME_RANGE_REQUEST.toJSON(buf)
@@ -76,13 +76,13 @@ const obj = CHANNEL_STATE_REQUEST.toJSON(buf)
 const obj = CHANNEL_LIST_REQUEST.toJSON(buf)
 ```
 #### Response-type messages
-```
+```js
 const obj = HASH_RESPONSE.toJSON(buf)
 const obj = POST_RESPONSE.toJSON(buf)
 const obj = CHANNEL_LIST_RESPONSE.toJSON(buf)
 ```
 #### Post types
-```
+```js
 const obj = TEXT_POST.toJSON(buf)
 const obj = DELETE_POST.toJSON(buf)
 const obj = INFO_POST.toJSON(buf)
