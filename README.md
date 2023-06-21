@@ -7,7 +7,7 @@ protocol](https://github.com/cabal-club/cable/tree/v1-draft).
 **Reponsibilities**:
 
 * Encoding and decoding binary payloads corresponding to all cable posts and messages 
-    * each post and message type can be encoded to binary with `create(<post/message specific fields>)` and decoded with `toJSON(buf)`
+    * each post and message type can be encoded to binary with `create(<required fields>)` and decoded with `toJSON(buf)`
 * Validating the requirements of each post and message type, adhering to cable specification's defined values (see [`./validation.js`](./validation.js))
 * Encapsulates all cryptography needed for interacting with cable (see [`./cryptography.js`](./cryptography.js)) peers 
 * Encapsulates all constants needed for interacting with cable (see
@@ -16,7 +16,7 @@ protocol](https://github.com/cabal-club/cable/tree/v1-draft).
 **Non-responsibilities**:
 
 * Does not take care of storage, indexing or any kind of persistence functions (see
-  `[cable-core.js](https://github.com/cabal-club/cable-core.js/))
+  [`cable-core.js`](https://github.com/cabal-club/cable-core.js/))
 * Does not provide any client specific functions (the upcoming `cable-client.js` library will take care of that)
 * Does not handle networking (up and coming for cable-core.js)
 
