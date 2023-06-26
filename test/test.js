@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2023 the cabal-club authors
+//
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 const test = require("tape")
 const cable = require("../index")
 const constants = require("../constants")

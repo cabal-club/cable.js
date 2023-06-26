@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2023 the cabal-club authors
+//
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 /* this file is not really a test bed so much as a quick & dirty playground :) */
 const b4a = require("b4a")
 const crypto = require("./cryptography.js")

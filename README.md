@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2023 the cabal-club authors
+
+SPDX-License-Identifier: CC0-1.0
+-->
+
 # cable.js
 **status**: alpha (subject to changes)
 

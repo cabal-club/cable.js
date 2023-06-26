@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2023 the cabal-club authors
+//
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 // all uses of "buffer" refer to the structure represented by b4a: 
 // i.e. a nodejs buffer if running nodejs, or a Uint8Array in the web
 const b4a = require("b4a")

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2023 the cabal-club authors
+//
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 /* 
  * outputs each request, response, and post type of the cable rev 2023-04 spec, one json object per line.
  * the json object contains the following keys:
