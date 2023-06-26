@@ -1,7 +1,7 @@
 {
   "name": "cable.js",
-  "version": "0.0.0-pre-alpha",
-  "description": "",
+  "version": "0.0.0",
+  "description": "everything needed to sign and generate all posts and message types of the cable wire protocol",
   "main": "index.js",
   "scripts": {
     "test": "$(npm bin)/tape test/*.js | $(npm bin)/tap-spec",
@@ -15,8 +15,8 @@
     "varint": "6.0.0"
   },
   "devDependencies": {
-    "tap-bail": "^1.0.0",
-    "tap-spec": "^5.0.0",
-    "tape": "^5.6.3"
+    "tap-bail": "1.0.0",
+    "tap-spec": "5.0.0",
+    "tape": "5.6.3"
   }
 }
