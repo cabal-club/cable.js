@@ -1,0 +1,216 @@
+> cable.js@0.0.1 test /home/cblgh/code/cabal-club/grant-work-2022/cable
+> $(npm bin)/tape test/*.js | $(npm bin)/tap-spec
+
+
+  test passes
+
+    ✔ this test always passes
+
+  0: hash response
+
+    ✔ message type should be hash response
+
+  msg type of hash response
+
+    ✔ reqid should be same
+    ✔ hashes should be same length
+    ✔ hashes should have same content
+    ✔ deserialized object should have msg type for hash response
+
+  0: hash response - wrong parameters
+
+    ✔ should error when passed faulty type for reqid
+    ✔ should error when passed faulty type for reqid
+    ✔ should error when missing argument
+
+  1: post response
+
+    ✔ message type should be post response
+    ✔ deserialized message type should also be post response
+    ✔ reqid should be same
+    ✔ decoded payload should be same as input
+
+  1: post response - wrong parameters
+
+    ✔ should error when passed faulty type for reqid
+    ✔ should error when passed faulty type for posts
+    ✔ should error when missing argument
+
+  7: channel list response
+
+    ✔ message type should be channel list response
+    ✔ deserialized message type should also be channel list response
+    ✔ reqid should be same
+    ✔ decoded payload should be same as input
+
+  7: channel list response - wrong parameters
+
+    ✔ should error when passed faulty type for reqid
+    ✔ should error when passed faulty type for posts
+    ✔ should error when missing argument
+
+  2: post request
+
+    ✔ msg type should be post request
+    ✔ reqid should be same
+    ✔ ttl should be same
+    ✔ hashes should be the same
+    ✔ deserialized msg type should be post request
+
+  2: post request, decrement ttl
+
+    ✔ msg type should be post request
+    ✔ reqid should be same
+    ✔ ttl should be one less than originally
+    ✔ hashes should be the same
+    ✔ deserialized msg type should be post request
+
+  3: cancel request
+
+    ✔ msg type should be cancel request
+    ✔ reqid should be same
+    ✔ cancelid should be same
+    ✔ deserialized msg type should be cancel request
+
+  4: channel time range request
+
+    ✔ msg type should be channel time range request
+    ✔ reqid should be same
+    ✔ deserialized msg type should be channel time range request
+    ✔ timeStart should be same
+    ✔ timeEnd should be same
+    ✔ limit should be same
+    ✔ channel should be same
+    ✔ ttl should be same
+
+  4: channel time range request, decrement ttl
+
+    ✔ msg type should be channel time range request
+    ✔ reqid should be same
+    ✔ deserialized msg type should be channel time range request
+    ✔ timeStart should be same
+    ✔ timeEnd should be same
+    ✔ limit should be same
+    ✔ channel should be same
+    ✔ ttl should be one less than originally
+
+  5: channel state request
+
+    ✔ msg type should be channel state request
+    ✔ reqid should be same
+    ✔ deserialized msg type should be channel state request
+    ✔ channel should be same
+    ✔ ttl should be same
+    ✔ future should be same
+
+  5: channel state request, decrement ttl
+
+    ✔ msg type should be channel state request
+    ✔ reqid should be same
+    ✔ deserialized msg type should be channel state request
+    ✔ channel should be same
+    ✔ ttl should be one less than originally
+    ✔ future should be same
+
+  6: channel list request
+
+    ✔ msg type should be channel list request
+    ✔ reqid should be same
+    ✔ deserialized msg type should be channel list request
+    ✔ ttl should be same
+    ✔ offset should be same
+    ✔ limit should be same
+
+  6: channel list request, decrement ttl
+
+    ✔ msg type should be channel list request
+    ✔ reqid should be same
+    ✔ deserialized msg type should be channel list request
+    ✔ ttl should be one smaller than originally
+    ✔ offset should be same
+    ✔ limit should be same
+
+  0: post/text
+
+    ✔ post type should be post/text
+    ✔ embedded cryptographic signature should be valid
+    ✔ deserialized post type should be post/text
+    ✔ channel should be same
+    ✔ timestamp should be same
+    ✔ links should be same
+    ✔ text should be same
+    ✔ public key should be same
+
+  hash of post/text should work as expected
+
+    ✔ serialized cablegram should be a buffer
+    ✔ hashed cablegram should be a buffer
+    ✔ hashed post should have correct size
+
+  1: post/delete
+
+    ✔ post type should be post/delete
+    ✔ embedded cryptographic signature should be valid
+    ✔ deserialized post type should be post/cancel
+    ✔ timestamp should be same
+    ✔ links should be same
+    ✔ hash to delete should be same
+    ✔ public key should be same
+
+  2: post/info
+
+    ✔ post type should be post/info
+    ✔ embedded cryptographic signature should be valid
+    ✔ deserialized post type should be post/info
+    ✔ timestamp should be same
+    ✔ links should be same
+    ✔ key should be same
+    ✔ value should be same
+    ✔ public key should be same
+
+  3: post/topic
+
+    ✔ post type should be post/topic
+    ✔ embedded cryptographic signature should be valid
+    ✔ deserialized post type should be post/topic
+    ✔ channel should be same
+    ✔ timestamp should be same
+    ✔ links should be same
+    ✔ topic should be same
+    ✔ public key should be same
+
+  4: post/join
+
+    ✔ post type should be post/join
+    ✔ embedded cryptographic signature should be valid
+    ✔ deserialized post type should be post/join
+    ✔ channel should be same
+    ✔ timestamp should be same
+    ✔ links should be same
+    ✔ public key should be same
+
+  5: post/leave
+
+    ✔ post type should be post/leave
+    ✔ embedded cryptographic signature should be valid
+    ✔ deserialized post type should be post/leave
+    ✔ channel should be same
+    ✔ timestamp should be same
+    ✔ links should be same
+    ✔ public key should be same
+
+  cablegrams with same input should be identical
+
+    ✔ hash response cablegram byte sequence should be identical for same inputs
+    ✔ post response cablegram byte sequence should be identical for same inputs
+    ✔ cancel request cablegram byte sequence should be identical for same inputs
+    ✔ channel time range request cablegram byte sequence should be identical for same inputs
+    ✔ channel state request cablegram byte sequence should be identical for same inputs
+    ✔ channel list request cablegram byte sequence should be identical for same inputs
+
+
+  total:     131
+  passing:   131
+  duration:  74ms
+
+
