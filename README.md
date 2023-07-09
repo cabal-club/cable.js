@@ -155,6 +155,24 @@ cable is capable of generating.
 }
 
 {
+  "name": "post request",
+  "type": "request",
+  "id": 2,
+  "binary": "6b020000000004baaffb010315ed54965515babf6f16be3f96b04b29ecca813a343311dae483691c07ccf4e597fc63631c41384226b9b68d9f73ffaaf6eac54b71838687f48f112e30d6db689c2939fec6d47b00bafe6967aeff697cf4b5abca01b04ba1b31a7e3752454bfa",
+  "obj": {
+    "msgLen": 107,
+    "msgType": 2,
+    "reqid": "04baaffb",
+    "ttl": 1,
+    "hashes": [
+      "15ed54965515babf6f16be3f96b04b29ecca813a343311dae483691c07ccf4e5",
+      "97fc63631c41384226b9b68d9f73ffaaf6eac54b71838687f48f112e30d6db68",
+      "9c2939fec6d47b00bafe6967aeff697cf4b5abca01b04ba1b31a7e3752454bfa"
+    ]
+  }
+}
+
+{
   "name": "cancel request",
   "type": "request",
   "id": 3,
@@ -260,24 +278,6 @@ cable is capable of generating.
       "default",
       "dev",
       "introduction"
-    ]
-  }
-}
-
-{
-  "name": "hash response",
-  "type": "response",
-  "id": 2,
-  "binary": "6b020000000004baaffb010315ed54965515babf6f16be3f96b04b29ecca813a343311dae483691c07ccf4e597fc63631c41384226b9b68d9f73ffaaf6eac54b71838687f48f112e30d6db689c2939fec6d47b00bafe6967aeff697cf4b5abca01b04ba1b31a7e3752454bfa",
-  "obj": {
-    "msgLen": 107,
-    "msgType": 2,
-    "reqid": "04baaffb",
-    "ttl": 1,
-    "hashes": [
-      "15ed54965515babf6f16be3f96b04b29ecca813a343311dae483691c07ccf4e5",
-      "97fc63631c41384226b9b68d9f73ffaaf6eac54b71838687f48f112e30d6db68",
-      "9c2939fec6d47b00bafe6967aeff697cf4b5abca01b04ba1b31a7e3752454bfa"
     ]
   }
 }
