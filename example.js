@@ -37,6 +37,12 @@ const keypair = crypto.generateKeypair()
 const link = crypto.hash(b4a.from("not a message payload at all actually"))
 const ttl = 1
 
+// 2: post request
+const bufHashReq = POST_REQUEST.create(crypto.generateReqID(), 3, hashes)
+console.log("msg type of post request", cable.peekMessage(bufHashReq))
+const objHashReq = POST_REQUEST.toJSON(bufHashReq)
+console.log(objHashReq)
+
 // 3: cancel request
 const cancelId = crypto.generateReqID()
 const b = CANCEL_REQUEST.create(crypto.generateReqID(), ttl, cancelId)
@@ -85,12 +91,6 @@ console.log(bufListRes)
 console.log("msg type of channel list response", cable.peekMessage(bufListRes))
 const objListRes = CHANNEL_LIST_RESPONSE.toJSON(bufListRes)
 console.log(objListRes)
-
-// 2: hash response
-const bufHashReq = POST_REQUEST.create(crypto.generateReqID(), 3, hashes)
-console.log("msg type of post request", cable.peekMessage(bufHashReq))
-const objHashReq = POST_REQUEST.toJSON(bufHashReq)
-console.log(objHashReq)
 
 
 /* post types */
