@@ -44,15 +44,12 @@ const TOPIC_POST = cable.TOPIC_POST
 const JOIN_POST = cable.JOIN_POST
 const LEAVE_POST = cable.LEAVE_POST
 
-function generateFakeHashes (amount) {
-  const hashes = []
-  for (let i = 0; i < amount; i++) {
-    hashes.push(crypto.hash(crypto.generateReqID()))
-  }
-  return hashes
-}
-
-const hashes = generateFakeHashes(3)
+// static hashes
+const hashes = [
+  b4a.from("20265674e8aac2dfddd78f86fe5a3dd68d976ca3f5ba23645ec7381480921d0d", "hex"),
+  b4a.from("10705340e5528f2ef03a6797b72b1bb9f37f9009ad408247387c4bcc4d2a3371", "hex"),
+  b4a.from("af700793dd51d4cb3c18a6df46f88bfe1665fba9b277487ddecd1e031441d69d", "hex")
+]
 
 // derived from const keypair = crypto.generateKeypair()
 // and then running: print(keypair)
@@ -74,8 +71,8 @@ const username = "cabler"
 const offset = 0
 const text = "h€llo world"
 const topic = "introduce yourself to the friendly crowd of likeminded folx"
-const reqid = crypto.generateReqID()
-const cancelid = crypto.generateReqID()
+const reqid = b4a.from("95050429", "hex") // static reqid
+const cancelid = b4a.from("58b041b1", "hex") // static cancelid
 
 // replace all Buffer instances when stringifying with Uint8Array
 // function replacer(key, value) {
