@@ -38,10 +38,10 @@ const link = crypto.hash(b4a.from("not a message payload at all actually"))
 const ttl = 1
 
 // 2: post request
-const bufHashReq = POST_REQUEST.create(crypto.generateReqID(), 3, hashes)
-console.log("msg type of post request", cable.peekMessage(bufHashReq))
-const objHashReq = POST_REQUEST.toJSON(bufHashReq)
-console.log(objHashReq)
+const bufPostReq = POST_REQUEST.create(crypto.generateReqID(), 3, hashes)
+console.log("msg type of post request", cable.peekMessage(bufPostReq))
+const objPostReq = POST_REQUEST.toJSON(bufPostReq)
+console.log(objPostReq)
 
 // 3: cancel request
 const cancelId = crypto.generateReqID()
