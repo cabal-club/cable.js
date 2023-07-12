@@ -126,12 +126,12 @@ cable is capable of generating.
       "secretKey": "f12a0b72a720f9ce6898a1f4c685bee4cc838102143db98f467c5512a726e69225b272a71555322d40efe449a7f99af8fd364b92d350f1664481b2da340a02d0"
     },
     "hashes": [
-      "15ed54965515babf6f16be3f96b04b29ecca813a343311dae483691c07ccf4e5",
-      "97fc63631c41384226b9b68d9f73ffaaf6eac54b71838687f48f112e30d6db68",
-      "9c2939fec6d47b00bafe6967aeff697cf4b5abca01b04ba1b31a7e3752454bfa"
+      "20265674e8aac2dfddd78f86fe5a3dd68d976ca3f5ba23645ec7381480921d0d",
+      "10705340e5528f2ef03a6797b72b1bb9f37f9009ad408247387c4bcc4d2a3371",
+      "af700793dd51d4cb3c18a6df46f88bfe1665fba9b277487ddecd1e031441d69d"
     ],
-    "reqid": "04baaffb",
-    "cancelid": "31b5c9e1",
+    "reqid": "95050429",
+    "cancelid": "58b041b1",
     "links": [
       "5049d089a650aa896cb25ec35258653be4df196b4a5e5b6db7ed024aaa89e1b3"
     ],
@@ -153,48 +153,45 @@ cable is capable of generating.
     "topic": "introduce yourself to the friendly crowd of likeminded folx"
   }
 }
-
 {
-  "name": "post request",
-  "type": "request",
+  "name": "hash response",
+  "type": "response",
   "id": 2,
-  "binary": "6b020000000004baaffb010315ed54965515babf6f16be3f96b04b29ecca813a343311dae483691c07ccf4e597fc63631c41384226b9b68d9f73ffaaf6eac54b71838687f48f112e30d6db689c2939fec6d47b00bafe6967aeff697cf4b5abca01b04ba1b31a7e3752454bfa",
+  "binary": "6b020000000095050429010320265674e8aac2dfddd78f86fe5a3dd68d976ca3f5ba23645ec7381480921d0d10705340e5528f2ef03a6797b72b1bb9f37f9009ad408247387c4bcc4d2a3371af700793dd51d4cb3c18a6df46f88bfe1665fba9b277487ddecd1e031441d69d",
   "obj": {
     "msgLen": 107,
     "msgType": 2,
-    "reqid": "04baaffb",
+    "reqid": "95050429",
     "ttl": 1,
     "hashes": [
-      "15ed54965515babf6f16be3f96b04b29ecca813a343311dae483691c07ccf4e5",
-      "97fc63631c41384226b9b68d9f73ffaaf6eac54b71838687f48f112e30d6db68",
-      "9c2939fec6d47b00bafe6967aeff697cf4b5abca01b04ba1b31a7e3752454bfa"
+      "20265674e8aac2dfddd78f86fe5a3dd68d976ca3f5ba23645ec7381480921d0d",
+      "10705340e5528f2ef03a6797b72b1bb9f37f9009ad408247387c4bcc4d2a3371",
+      "af700793dd51d4cb3c18a6df46f88bfe1665fba9b277487ddecd1e031441d69d"
     ]
   }
 }
-
 {
   "name": "cancel request",
   "type": "request",
   "id": 3,
-  "binary": "0e030000000004baaffb0131b5c9e1",
+  "binary": "0e0300000000950504290158b041b1",
   "obj": {
     "msgLen": 14,
     "msgType": 3,
-    "reqid": "04baaffb",
+    "reqid": "95050429",
     "ttl": 1,
-    "cancelid": "31b5c9e1"
+    "cancelid": "58b041b1"
   }
 }
-
 {
   "name": "channel time range request",
   "type": "request",
   "id": 4,
-  "binary": "15040000000004baaffb010764656661756c74006414",
+  "binary": "15040000000095050429010764656661756c74006414",
   "obj": {
     "msgLen": 21,
     "msgType": 4,
-    "reqid": "04baaffb",
+    "reqid": "95050429",
     "ttl": 1,
     "channel": "default",
     "timeStart": 0,
@@ -202,78 +199,73 @@ cable is capable of generating.
     "limit": 20
   }
 }
-
 {
   "name": "channel state request",
   "type": "request",
   "id": 5,
-  "binary": "13050000000004baaffb010764656661756c7400",
+  "binary": "13050000000095050429010764656661756c7400",
   "obj": {
     "msgLen": 19,
     "msgType": 5,
-    "reqid": "04baaffb",
+    "reqid": "95050429",
     "ttl": 1,
     "channel": "default",
     "future": 0
   }
 }
-
 {
   "name": "channel list request",
   "type": "request",
   "id": 6,
-  "binary": "0c060000000004baaffb010014",
+  "binary": "0c060000000095050429010014",
   "obj": {
     "msgLen": 12,
     "msgType": 6,
-    "reqid": "04baaffb",
+    "reqid": "95050429",
     "ttl": 1,
     "offset": 0,
     "limit": 20
   }
 }
-
 {
   "name": "hash response",
   "type": "response",
   "id": 0,
-  "binary": "6a000000000004baaffb0315ed54965515babf6f16be3f96b04b29ecca813a343311dae483691c07ccf4e597fc63631c41384226b9b68d9f73ffaaf6eac54b71838687f48f112e30d6db689c2939fec6d47b00bafe6967aeff697cf4b5abca01b04ba1b31a7e3752454bfa",
+  "binary": "6a0000000000950504290320265674e8aac2dfddd78f86fe5a3dd68d976ca3f5ba23645ec7381480921d0d10705340e5528f2ef03a6797b72b1bb9f37f9009ad408247387c4bcc4d2a3371af700793dd51d4cb3c18a6df46f88bfe1665fba9b277487ddecd1e031441d69d",
   "obj": {
     "msgLen": 106,
     "msgType": 0,
-    "reqid": "04baaffb",
+    "reqid": "95050429",
     "hashes": [
-      "15ed54965515babf6f16be3f96b04b29ecca813a343311dae483691c07ccf4e5",
-      "97fc63631c41384226b9b68d9f73ffaaf6eac54b71838687f48f112e30d6db68",
-      "9c2939fec6d47b00bafe6967aeff697cf4b5abca01b04ba1b31a7e3752454bfa"
+      "20265674e8aac2dfddd78f86fe5a3dd68d976ca3f5ba23645ec7381480921d0d",
+      "10705340e5528f2ef03a6797b72b1bb9f37f9009ad408247387c4bcc4d2a3371",
+      "af700793dd51d4cb3c18a6df46f88bfe1665fba9b277487ddecd1e031441d69d"
     ]
   }
 }
-
 {
   "name": "post response",
   "type": "response",
   "id": 1,
-  "binary": "9701010000000004baaffb8b0125b272a71555322d40efe449a7f99af8fd364b92d350f1664481b2da340a02d0abb083ecdca569f064564942ddf1944fbf550dc27ea36a7074be798d753cb029703de77b1a9532b6ca2ec5706e297dce073d6e508eeb425c32df8431e4677805015049d089a650aa896cb25ec35258653be4df196b4a5e5b6db7ed024aaa89e1b305500764656661756c7400",
+  "binary": "97010100000000950504298b0125b272a71555322d40efe449a7f99af8fd364b92d350f1664481b2da340a02d0abb083ecdca569f064564942ddf1944fbf550dc27ea36a7074be798d753cb029703de77b1a9532b6ca2ec5706e297dce073d6e508eeb425c32df8431e4677805015049d089a650aa896cb25ec35258653be4df196b4a5e5b6db7ed024aaa89e1b305500764656661756c7400",
   "obj": {
     "msgLen": 151,
     "msgType": 1,
-    "reqid": "04baaffb",
+    "reqid": "95050429",
     "posts": [
       "25b272a71555322d40efe449a7f99af8fd364b92d350f1664481b2da340a02d0abb083ecdca569f064564942ddf1944fbf550dc27ea36a7074be798d753cb029703de77b1a9532b6ca2ec5706e297dce073d6e508eeb425c32df8431e4677805015049d089a650aa896cb25ec35258653be4df196b4a5e5b6db7ed024aaa89e1b305500764656661756c74"
     ]
   }
 }
-
 {
   "name": "channel list response",
   "type": "response",
   "id": 7,
-  "binary": "23070000000004baaffb0764656661756c74036465760c696e74726f64756374696f6e00",
+  "binary": "230700000000950504290764656661756c74036465760c696e74726f64756374696f6e00",
   "obj": {
     "msgLen": 35,
     "msgType": 7,
-    "reqid": "04baaffb",
+    "reqid": "95050429",
     "channels": [
       "default",
       "dev",
@@ -281,7 +273,6 @@ cable is capable of generating.
     ]
   }
 }
-
 {
   "name": "post/text",
   "type": "post",
@@ -299,36 +290,34 @@ cable is capable of generating.
     "text": "h€llo world"
   }
 }
-
 {
   "name": "post/delete",
   "type": "post",
   "id": 1,
-  "binary": "25b272a71555322d40efe449a7f99af8fd364b92d350f1664481b2da340a02d0affe77e3b3156cda7feea042269bb7e93f5031662c70610d37baa69132b4150c18d67cb2ac24fb0f9be0a6516e53ba2f3bbc5bd8e7a1bff64d9c78ce0c2e4205015049d089a650aa896cb25ec35258653be4df196b4a5e5b6db7ed024aaa89e1b301500315ed54965515babf6f16be3f96b04b29ecca813a343311dae483691c07ccf4e597fc63631c41384226b9b68d9f73ffaaf6eac54b71838687f48f112e30d6db689c2939fec6d47b00bafe6967aeff697cf4b5abca01b04ba1b31a7e3752454bfa",
+  "binary": "25b272a71555322d40efe449a7f99af8fd364b92d350f1664481b2da340a02d0e8fc6c809f3086627879520abe6f76a4810a8bef77a668f41046c48dc98c13ed55aa54ca1e6913076bd7791c6c97aa807850bc6be7415fa5d251b9b26febd101015049d089a650aa896cb25ec35258653be4df196b4a5e5b6db7ed024aaa89e1b301500320265674e8aac2dfddd78f86fe5a3dd68d976ca3f5ba23645ec7381480921d0d10705340e5528f2ef03a6797b72b1bb9f37f9009ad408247387c4bcc4d2a3371af700793dd51d4cb3c18a6df46f88bfe1665fba9b277487ddecd1e031441d69d",
   "obj": {
     "publicKey": "25b272a71555322d40efe449a7f99af8fd364b92d350f1664481b2da340a02d0",
-    "signature": "affe77e3b3156cda7feea042269bb7e93f5031662c70610d37baa69132b4150c18d67cb2ac24fb0f9be0a6516e53ba2f3bbc5bd8e7a1bff64d9c78ce0c2e4205",
+    "signature": "e8fc6c809f3086627879520abe6f76a4810a8bef77a668f41046c48dc98c13ed55aa54ca1e6913076bd7791c6c97aa807850bc6be7415fa5d251b9b26febd101",
     "links": [
       "5049d089a650aa896cb25ec35258653be4df196b4a5e5b6db7ed024aaa89e1b3"
     ],
     "postType": 1,
     "timestamp": 80,
     "hashes": [
-      "15ed54965515babf6f16be3f96b04b29ecca813a343311dae483691c07ccf4e5",
-      "97fc63631c41384226b9b68d9f73ffaaf6eac54b71838687f48f112e30d6db68",
-      "9c2939fec6d47b00bafe6967aeff697cf4b5abca01b04ba1b31a7e3752454bfa"
+      "20265674e8aac2dfddd78f86fe5a3dd68d976ca3f5ba23645ec7381480921d0d",
+      "10705340e5528f2ef03a6797b72b1bb9f37f9009ad408247387c4bcc4d2a3371",
+      "af700793dd51d4cb3c18a6df46f88bfe1665fba9b277487ddecd1e031441d69d"
     ]
   }
 }
-
 {
   "name": "post/info",
   "type": "post",
   "id": 2,
-  "binary": "25b272a71555322d40efe449a7f99af8fd364b92d350f1664481b2da340a02d0f70273779147a3b756407d5660ed2e8e2975abc5ab224fb152aa2bfb3dd331740a66e0718cd580bc94978c1c3cd4524ad8cb2f4cca80df481010c3ef834ac700015049d089a650aa896cb25ec35258653be4df196b4a5e5b6db7ed024aaa89e1b30250046e616d65066361626c6572",
+  "binary": "25b272a71555322d40efe449a7f99af8fd364b92d350f1664481b2da340a02d04ccb1c0063ef09a200e031ee89d874bcc99f3e6fd8fd667f5e28f4dbcf4b7de6bb1ce37d5f01cc055a7b70cef175d30feeb34531db98c91fa8b3fa4d7c5fd307015049d089a650aa896cb25ec35258653be4df196b4a5e5b6db7ed024aaa89e1b30250046e616d65066361626c657200",
   "obj": {
     "publicKey": "25b272a71555322d40efe449a7f99af8fd364b92d350f1664481b2da340a02d0",
-    "signature": "f70273779147a3b756407d5660ed2e8e2975abc5ab224fb152aa2bfb3dd331740a66e0718cd580bc94978c1c3cd4524ad8cb2f4cca80df481010c3ef834ac700",
+    "signature": "4ccb1c0063ef09a200e031ee89d874bcc99f3e6fd8fd667f5e28f4dbcf4b7de6bb1ce37d5f01cc055a7b70cef175d30feeb34531db98c91fa8b3fa4d7c5fd307",
     "links": [
       "5049d089a650aa896cb25ec35258653be4df196b4a5e5b6db7ed024aaa89e1b3"
     ],
@@ -338,7 +327,6 @@ cable is capable of generating.
     "value": "cabler"
   }
 }
-
 {
   "name": "post/topic",
   "type": "post",
@@ -356,7 +344,6 @@ cable is capable of generating.
     "topic": "introduce yourself to the friendly crowd of likeminded folx"
   }
 }
-
 {
   "name": "post/join",
   "type": "post",
@@ -373,7 +360,6 @@ cable is capable of generating.
     "timestamp": 80
   }
 }
-
 {
   "name": "post/leave",
   "type": "post",
