@@ -13,9 +13,6 @@ const validation = require("./validation.js")
 // TODO (2023-01-10):
 // in the create methods: improve resiliency by detecting when the pre-allocated buffer will not be large enough, and reallocate a larger buffer
 
-// TODO (2023-01-11): regarding byte size of a string
-// is it enough to simply do str.length to get the correct byte size? any gotchas?
-
 // TODO (2023-01-11): 
 // would like to abstract away `offset += varint.decode.bytes` in case we swap library / opt for self-authored standard
 
@@ -837,6 +834,8 @@ class INFO_POST {
     // convert to buf: yields correct length wrt utf-8 bytes + used when copying
     const keyBuf = b4a.from(key, "utf8")
     validation.checkInfoKey(keyBuf)
+    // TODO (2023-07-12): this intentionally only handles the 1 value as spec only has 1 defined key (name). if we
+    // change that, improve this routine to take multiple values into account
     // 7. write keyLen
     offset += writeVarint(keyBuf.length, buf, offset)
     // 8. write the key
@@ -851,6 +850,8 @@ class INFO_POST {
     offset += writeVarint(valueBuf.length, buf, offset)
     // 10. write the value
     offset += valueBuf.copy(buf, offset)
+    // 11. finally: signal end of key-val list by writing keyN_len = 0
+    offset += writeVarint(0, buf, offset)
     
     // everything has now been written, slice out the final message from the larger buffer
     const message = buf.subarray(0, offset)
@@ -910,6 +911,13 @@ class INFO_POST {
       validation.checkUsername(valueBuf)
     }
     const value = valueBuf.toString("utf8")
+    // TODO (2023-07-12): if spec's post/info is expanded with more than 1 key (name), improve this routine
+    // 11. get terminating keyN_len (should be zero)
+    const finalValueLen = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    if (finalValueLen !== 0) {
+      return new Error(`"post/info: final keyN_len should be 0, was ${finalValueLen}`)
+    }
 
     return { publicKey, signature, links, postType, timestamp, key, value }
   }
