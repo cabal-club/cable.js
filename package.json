@@ -1,6 +1,6 @@
 {
   "name": "cable.js",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "everything needed to sign and generate all posts and message types of the cable wire protocol",
   "main": "index.js",
   "scripts": {
