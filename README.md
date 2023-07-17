@@ -7,8 +7,7 @@ SPDX-License-Identifier: CC0-1.0
 # cable.js
 **status**: alpha (subject to changes)
 
-This library contains everything needed to generate all posts and message types of the [Cable
-protocol](https://github.com/cabal-club/cable/tree/v1-draft).
+This library contains everything needed to generate all posts and message types of the [Cable protocol](https://github.com/cabal-club/cable).
 
 **Reponsibilities**:
 
@@ -109,7 +108,7 @@ Each json object (not including `initial-parameters`) describes a particular pos
 cable is capable of generating. 
 
 * The `name` and `type` fields of each object describes the post/message type. 
-* The `id` field is the canonical numerical description corresponding to what `msg_type` (requests/responses) or `post_type` (posts) is being presented. See the [cable spec](https://github.com/cabal-club/cable/tree/v1-draft#table-of-contents) for the full listing of types.
+* The `id` field is the canonical numerical description corresponding to what `msg_type` (requests/responses) or `post_type` (posts) is being presented. See the [cable spec](https://github.com/cabal-club/cable#table-of-contents) for the full listing of types.
 * The `binary` field is the hex-encoded binary representation of the full post/message. 
 * The `obj` field is the json representation produced by this repository's library when parsing
   the corresponding binary representation.
