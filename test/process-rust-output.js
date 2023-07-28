@@ -10,9 +10,8 @@ fs.readFile("./rust-output.txt", (err, data) => {
     if (line.slice(0,index).includes("binary")) {
       value = line.slice(index+1).trim().replace(/"/g, '')
     } else {
-      continue
-    //   value = line.slice(index+1)
-    //   value = JSON.parse(value)
+      value = line.slice(index+1)
+      value = JSON.parse(value)
     }
     map[key] = value
   }

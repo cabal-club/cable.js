@@ -328,7 +328,7 @@ test("hash of post/text should work as expected", t => {
   const buf = TEXT_POST.create(keypair.publicKey, keypair.secretKey, links, channel, timestamp, text)
   t.true(b4a.isBuffer(buf), "serialized cablegram should be a buffer")
   const hash = crypto.hash(buf)
-  t.true(b4a.isBuffer(buf), "hashed cablegram should be a buffer")
+  t.true(b4a.isBuffer(hash), "hashed cablegram should be a buffer")
   t.equal(hash.length, constants.HASH_SIZE, "hashed post should have correct size")
   t.end()
 })
