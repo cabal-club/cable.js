@@ -55,8 +55,6 @@ const LEAVE_POST = 5
 
 const MAX_VARINT_SIZE = 10 // according to cryptix in svendborg :)
 
-const DEFAULT_BUFFER_SIZE = 1024
-
 const REQID_SIZE = 4
 const CIRCUITID_SIZE = 4
 const HASH_SIZE = sodium.crypto_generichash_BYTES
@@ -98,7 +96,6 @@ module.exports = {
   JOIN_POST,
   LEAVE_POST,
 
-  DEFAULT_BUFFER_SIZE,
   MAX_VARINT_SIZE,
   REQID_SIZE,
   CIRCUITID_SIZE,

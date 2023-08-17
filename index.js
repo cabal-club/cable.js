@@ -10,8 +10,7 @@ const varint = require("varint")
 const crypto = require("./cryptography.js")
 const validation = require("./validation.js")
 
-// TODO (2023-01-10):
-// in the create methods: improve resiliency by detecting when the pre-allocated buffer will not be large enough, and reallocate a larger buffer
+const EMPTY_CIRCUIT_ID = b4a.alloc(4).fill(0)
 
 // TODO (2023-01-11): 
 // would like to abstract away `offset += varint.decode.bytes` in case we swap library / opt for self-authored standard
@@ -45,8 +44,16 @@ class HASH_RESPONSE {
     if (arguments.length !== 2) { throw wrongNumberArguments(2, arguments.length, "create(reqid, hashes)") }
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
     if (!isArrayHashes(hashes)) { throw HASHES_EXPECTED }
-    // allocate default-sized buffer
-    let frame = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
+
+    const size = determineBufferSize([
+      {v: constants.HASH_RESPONSE},
+      {b: constants.CIRCUITID_SIZE},
+      {b: constants.REQID_SIZE}, 
+      {h: hashes.length}
+    ]) 
+
+    // allocate exactly-sized buffer
+    const frame = b4a.alloc(size)
     let offset = 0
     // 1. write message type
     offset += writeVarint(constants.HASH_RESPONSE, frame, offset)
@@ -60,8 +67,6 @@ class HASH_RESPONSE {
     hashes.forEach(hash => {
       offset += hash.copy(frame, offset)
     })
-    // resize buffer, since we have written everything except msglen
-    frame = frame.subarray(0, offset)
     return prependMsgLen(frame)
   }
   // takes a message buffer and returns the json object: 
@@ -104,8 +109,17 @@ class POST_RESPONSE {
     if (arguments.length !== 2) { throw wrongNumberArguments(2, arguments.length, "create(reqid, posts)") }
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
     if (!isArrayData(posts)) { throw new Error(`expected posts to be a buffer`) }
-    // allocate default-sized buffer
-    let frame = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
+
+    const size = determineBufferSize([
+      {v: constants.POST_REQUEST},
+      {b: constants.CIRCUITID_SIZE},
+      {b: constants.REQID_SIZE},
+      {b: countPostsBytes(posts)},
+      {v: 0} // concluding postLen = 0
+    ])
+
+    // allocate exactly-sized buffer
+    const frame = b4a.alloc(size)
     let offset = 0
     // 1. write message type
     offset += writeVarint(constants.POST_RESPONSE, frame, offset)
@@ -122,8 +136,6 @@ class POST_RESPONSE {
     }
     // 4.3 finally: write postLen = 0 to signal end of data
     offset += writeVarint(0, frame, offset)
-    // resize buffer, since we have written everything except msglen
-    frame = frame.subarray(0, offset)
     return prependMsgLen(frame)
   }
   // takes a message buffer and returns the json object: 
@@ -170,7 +182,6 @@ class POST_RESPONSE {
   }
 }
 
-const EMPTY_CIRCUIT_ID = b4a.alloc(4).fill(0)
 
 class POST_REQUEST {
   // constructs a message buffer using the incoming arguments
@@ -181,8 +192,16 @@ class POST_REQUEST {
     if (!ttlRangecorrect(ttl)) { throw ttlRangeExpected(ttl) }
     if (!isArrayHashes(hashes)) { throw HASHES_EXPECTED }
 
-    // allocate default-sized buffer
-    let frame = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
+    const size = determineBufferSize([
+      {v: constants.POST_REQUEST},
+      {b: constants.CIRCUITID_SIZE},
+      {b: constants.REQID_SIZE},
+      {v: ttl},
+      {h: hashes.length}
+    ])
+
+    // allocate exactly-sized buffer
+    const frame = b4a.alloc(size)
     let offset = 0
     // 1. write message type
     offset += writeVarint(constants.POST_REQUEST, frame, offset)
@@ -198,8 +217,6 @@ class POST_REQUEST {
     hashes.forEach(hash => {
       offset += hash.copy(frame, offset)
     })
-    // resize buffer, since we have written everything except msglen
-    frame = frame.subarray(0, offset)
     return prependMsgLen(frame)
   }
 
@@ -255,8 +272,16 @@ class CANCEL_REQUEST {
     if (!ttlRangecorrect(ttl)) { throw ttlRangeExpected(ttl) }
     if (!isBufferSize(cancelid, constants.REQID_SIZE)) { throw bufferExpected("cancelid", constants.REQID_SIZE) }
 
-    // allocate default-sized buffer
-    let frame = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
+    const size = determineBufferSize([
+      {v: constants.CANCEL_REQUEST},
+      {b: constants.CIRCUITID_SIZE},
+      {b: constants.REQID_SIZE},
+      {v: ttl},
+      {b: constants.REQID_SIZE} // cancelid
+    ])
+
+    // allocate exactly-sized buffer
+    const frame = b4a.alloc(size)
     let offset = 0
     // 1. write message type
     offset += writeVarint(constants.CANCEL_REQUEST, frame, offset)
@@ -269,8 +294,6 @@ class CANCEL_REQUEST {
     // 4. write cancelid
     offset += cancelid.copy(frame, offset)
 
-    // resize buffer, since we have written everything except msglen
-    frame = frame.subarray(0, offset)
     return prependMsgLen(frame)
   }
 
@@ -317,8 +340,23 @@ class TIME_RANGE_REQUEST {
     if (!isInteger(timeEnd)) { throw integerExpected("timeEnd") }
     if (!isInteger(limit)) { throw integerExpected("limit") }
 
-    // allocate default-sized buffer
-    let frame = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
+    // convert to buf: yields correct length wrt utf-8 bytes + used when copying
+    const channelBuf = b4a.from(channel, "utf8")
+    validation.checkChannelName(channelBuf)
+
+    const size = determineBufferSize([
+      {v: constants.TIME_RANGE_REQUEST},
+      {b: constants.CIRCUITID_SIZE},
+      {b: constants.REQID_SIZE},
+      {v: ttl},
+      {s: channelBuf.length},
+      {v: timeStart},
+      {v: timeEnd},
+      {v: limit}
+    ])
+
+    // allocate exactly-sized buffer
+    const frame = b4a.alloc(size)
     let offset = 0
     // 1. write message type
     offset += writeVarint(constants.TIME_RANGE_REQUEST, frame, offset)
@@ -328,9 +366,6 @@ class TIME_RANGE_REQUEST {
     offset += reqid.copy(frame, offset)
     // 4. write ttl
     offset += writeVarint(ttl, frame, offset)
-    // convert to buf: yields correct length wrt utf-8 bytes + used when copying
-    const channelBuf = b4a.from(channel, "utf8")
-    validation.checkChannelName(channelBuf)
     // 5. write channel_len
     offset += writeVarint(channelBuf.length, frame, offset)
     // 6. write the channel
@@ -341,8 +376,6 @@ class TIME_RANGE_REQUEST {
     offset += writeVarint(timeEnd, frame, offset)
     // 9. write limit
     offset += writeVarint(limit, frame, offset)
-    // resize buffer, since we have written everything except msglen
-    frame = frame.subarray(0, offset)
     return prependMsgLen(frame)
   }
   
@@ -404,8 +437,21 @@ class CHANNEL_STATE_REQUEST {
     if (!isString(channel)) { throw stringExpected("channel") }
     if (!isInteger(future)) { throw integerExpected("future") }
 
-    // allocate default-sized buffer
-    let frame = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
+    // convert to buf: yields correct length wrt utf-8 bytes + used when copying
+    const channelBuf = b4a.from(channel, "utf8")
+    validation.checkChannelName(channelBuf)
+
+    const size = determineBufferSize([
+      {v: constants.CHANNEL_STATE_REQUEST},
+      {b: constants.CIRCUITID_SIZE},
+      {b: constants.REQID_SIZE},
+      {v: ttl},
+      {s: channelBuf.length},
+      {v: future},
+    ])
+
+    // allocate exactly-sized buffer
+    const frame = b4a.alloc(size)
     let offset = 0
     // 1. write message type
     offset += writeVarint(constants.CHANNEL_STATE_REQUEST, frame, offset)
@@ -415,17 +461,12 @@ class CHANNEL_STATE_REQUEST {
     offset += reqid.copy(frame, offset)
     // 4. write ttl
     offset += writeVarint(ttl, frame, offset)
-    // convert to buf: yields correct length wrt utf-8 bytes + used when copying
-    const channelBuf = b4a.from(channel, "utf8")
-    validation.checkChannelName(channelBuf)
     // 5. write channel_len
     offset += writeVarint(channelBuf.length, frame, offset)
     // 6. write the channel
     offset += channelBuf.copy(frame, offset)
     // 7. write future
     offset += writeVarint(future, frame, offset)
-    // resize buffer, since we have written everything except msglen
-    frame = frame.subarray(0, offset)
     return prependMsgLen(frame)
   }
   // takes a message buffer and returns the json object: 
@@ -481,8 +522,17 @@ class CHANNEL_LIST_REQUEST {
     if (!isInteger(argOffset)) { throw integerExpected("offset") }
     if (!isInteger(limit)) { throw integerExpected("limit") }
 
-    // allocate default-sized buffer
-    let frame = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
+    const size = determineBufferSize([
+      {v: constants.CHANNEL_LIST_REQUEST},
+      {b: constants.CIRCUITID_SIZE},
+      {b: constants.REQID_SIZE},
+      {v: ttl},
+      {v: argOffset},
+      {v: limit}
+    ])
+
+    // allocate exactly-sized buffer
+    const frame = b4a.alloc(size)
     let offset = 0
     // 1. write message type
     offset += writeVarint(constants.CHANNEL_LIST_REQUEST, frame, offset)
@@ -496,8 +546,7 @@ class CHANNEL_LIST_REQUEST {
     offset += writeVarint(argOffset, frame, offset)
     // 6. write limit 
     offset += writeVarint(limit, frame, offset)
-    // resize buffer, since we have written everything except msglen
-    frame = frame.subarray(0, offset)
+
     return prependMsgLen(frame)
   }
   // takes a message buffer and returns the json object: 
@@ -545,8 +594,16 @@ class CHANNEL_LIST_RESPONSE {
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
     if (!isArrayString(channels)) { throw STRINGS_EXPECTED }
 
-    // allocate default-sized buffer
-    let frame = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
+    const size = determineBufferSize([
+      {v: constants.CHANNEL_LIST_RESPONSE},
+      {b: constants.CIRCUITID_SIZE},
+      {b: constants.REQID_SIZE},
+      {b: countChannelsBytes(channels)},
+      {v: 0} // concluding channelLen = 0
+    ])
+
+    // allocate exactly-sized buffer
+    const frame = b4a.alloc(size)
     let offset = 0
     // 1. write message type
     offset += writeVarint(constants.CHANNEL_LIST_RESPONSE, frame, offset)
@@ -566,8 +623,7 @@ class CHANNEL_LIST_RESPONSE {
     })
     // 4.3 finally: write a channelLen = 0 to signal end of channel data
     offset += writeVarint(0, frame, offset)
-    // resize buffer, since we have written everything except msglen
-    frame = frame.subarray(0, offset)
+
     return prependMsgLen(frame)
   }
   // takes a message buffer and returns the json object: 
@@ -625,9 +681,25 @@ class TEXT_POST {
     if (!isString(channel)) { throw stringExpected("channel") }
     if (!isInteger(timestamp)) { throw integerExpected("timestamp") }
     if (!isString(text)) { throw stringExpected("text") }
+
+    // convert to buf: yields correct length wrt utf-8 bytes + used when copying
+    const channelBuf = b4a.from(channel, "utf8")
+    validation.checkChannelName(channelBuf)
+    const textBuf = b4a.from(text, "utf8")
+    validation.checkPostText(textBuf)
+
+    const size = determineBufferSize([
+      {b: constants.PUBLICKEY_SIZE},
+      {b: constants.SIGNATURE_SIZE},
+      {h: links.length},
+      {v: constants.TEXT_POST},
+      {v: timestamp},
+      {s: channelBuf.length},
+      {s: textBuf.length}
+    ]) 
     
     let offset = 0
-    const buf = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
+    const buf = b4a.alloc(size)
     // 1. write public key
     offset += publicKey.copy(buf, 0)
     // 2. make space for signature, which is done last of all.
@@ -642,28 +714,20 @@ class TEXT_POST {
     offset += writeVarint(constants.TEXT_POST, buf, offset)
     // 6. write timestamp
     offset += writeVarint(timestamp, buf, offset)
-    // convert to buf: yields correct length wrt utf-8 bytes + used when copying
-    const channelBuf = b4a.from(channel, "utf8")
-    validation.checkChannelName(channelBuf)
     // 7. write channelLen
     offset += writeVarint(channelBuf.length, buf, offset)
     // 8. write the channel
     offset += channelBuf.copy(buf, offset)
-    // convert to buf: yields correct length wrt utf-8 bytes + used when copying
-    const textBuf = b4a.from(text, "utf8")
-    validation.checkPostText(textBuf)
     // 9. write textLen
     offset += writeVarint(textBuf.length, buf, offset)
     // 10. write the text
     offset += textBuf.copy(buf, offset)
 
-    // everything has now been written, slice out the final message from the larger buffer
-    const message = buf.subarray(0, offset)
     // now, time to make a signature
-    crypto.sign(message, secretKey)
-    validation.checkSignature(message, publicKey)
+    crypto.sign(buf, secretKey)
+    validation.checkSignature(buf, publicKey)
 
-    return message
+    return buf
   }
 
   static toJSON(buf) {
@@ -726,9 +790,18 @@ class DELETE_POST {
     if (!isArrayHashes(links)) { throw LINKS_EXPECTED }
     if (!isInteger(timestamp)) { throw integerExpected("timestamp") }
     if (!isArrayHashes(hashes)) { throw HASHES_EXPECTED }
+
+    const size = determineBufferSize([
+      {b: constants.PUBLICKEY_SIZE},
+      {b: constants.SIGNATURE_SIZE},
+      {h: links.length},
+      {v: constants.DELETE_POST},
+      {v: timestamp},
+      {h: hashes.length}
+    ]) 
     
     let offset = 0
-    const buf = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
+    const buf = b4a.alloc(size)
     // 1. write public key
     offset += publicKey.copy(buf, 0)
     // 2. make space for signature, which is done last of all.
@@ -750,13 +823,11 @@ class DELETE_POST {
       offset += hash.copy(buf, offset)
     })
     
-    // everything has now been written, slice out the final message from the larger buffer
-    const message = buf.subarray(0, offset)
     // now, time to make a signature
-    crypto.sign(message, secretKey)
-    validation.checkSignature(message, publicKey)
+    crypto.sign(buf, secretKey)
+    validation.checkSignature(buf, publicKey)
 
-    return message
+    return buf
   }
 
   static toJSON(buf) {
@@ -814,9 +885,29 @@ class INFO_POST {
     if (!isInteger(timestamp)) { throw integerExpected("timestamp") }
     if (!isString(key)) { throw stringExpected("key") }
     if (!isString(value)) { throw stringExpected("value") }
-    
+
+    // convert to buf: yields correct length wrt utf-8 bytes + used when copying
+    const keyBuf = b4a.from(key, "utf8")
+    validation.checkInfoKey(keyBuf)
+    const valueBuf = b4a.from(value, "utf8")
+    validation.checkInfoValue(valueBuf)
+    if (key === "name") {
+      validation.checkUsername(valueBuf)
+    }
+
+    const size = determineBufferSize([
+      {b: constants.PUBLICKEY_SIZE},
+      {b: constants.SIGNATURE_SIZE},
+      {h: links.length},
+      {v: constants.INFO_POST},
+      {v: timestamp},
+      {s: keyBuf.length},
+      {s: valueBuf.length},
+      {v: 0} // concluding keyN_len = 0
+    ]) 
+
     let offset = 0
-    const buf = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
+    const buf = b4a.alloc(size)
     // 1. write public key
     offset += publicKey.copy(buf, 0)
     // 2. make space for signature, which is done last of all.
@@ -831,21 +922,12 @@ class INFO_POST {
     offset += writeVarint(constants.INFO_POST, buf, offset)
     // 6. write timestamp
     offset += writeVarint(timestamp, buf, offset)
-    // convert to buf: yields correct length wrt utf-8 bytes + used when copying
-    const keyBuf = b4a.from(key, "utf8")
-    validation.checkInfoKey(keyBuf)
     // TODO (2023-07-12): this intentionally only handles the 1 value as spec only has 1 defined key (name). if we
     // change that, improve this routine to take multiple values into account
     // 7. write keyLen
     offset += writeVarint(keyBuf.length, buf, offset)
     // 8. write the key
     offset += keyBuf.copy(buf, offset)
-    // convert to buf: yields correct length wrt utf-8 bytes + used when copying
-    const valueBuf = b4a.from(value, "utf8")
-    validation.checkInfoValue(valueBuf)
-    if (key === "name") {
-      validation.checkUsername(valueBuf)
-    }
     // 9. write valueLen
     offset += writeVarint(valueBuf.length, buf, offset)
     // 10. write the value
@@ -853,13 +935,11 @@ class INFO_POST {
     // 11. finally: signal end of key-val list by writing keyN_len = 0
     offset += writeVarint(0, buf, offset)
     
-    // everything has now been written, slice out the final message from the larger buffer
-    const message = buf.subarray(0, offset)
     // now, time to make a signature
-    crypto.sign(message, secretKey)
-    validation.checkSignature(message, publicKey)
+    crypto.sign(buf, secretKey)
+    validation.checkSignature(buf, publicKey)
 
-    return message
+    return buf
   }
 
   static toJSON(buf) {
@@ -932,9 +1012,25 @@ class TOPIC_POST {
     if (!isString(channel)) { throw stringExpected("channel") }
     if (!isInteger(timestamp)) { throw integerExpected("timestamp") }
     if (!isString(topic)) { throw stringExpected("topic") }
+    
+    // convert to buf: yields correct length wrt utf-8 bytes + used when copying
+    const channelBuf = b4a.from(channel, "utf8")
+    validation.checkChannelName(channelBuf)
+    const topicBuf = b4a.from(topic, "utf8")
+    validation.checkTopic(topicBuf)
+
+    const size = determineBufferSize([
+      {b: constants.PUBLICKEY_SIZE},
+      {b: constants.SIGNATURE_SIZE},
+      {h: links.length},
+      {v: constants.TOPIC_POST},
+      {v: timestamp},
+      {s: channelBuf.length},
+      {s: topicBuf.length}
+    ]) 
 
     let offset = 0
-    const buf = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
+    const buf = b4a.alloc(size)
     // 1. write public key
     offset += publicKey.copy(buf, 0)
     // 2. make space for signature, which is done last of all.
@@ -949,28 +1045,20 @@ class TOPIC_POST {
     offset += writeVarint(constants.TOPIC_POST, buf, offset)
     // 6. write timestamp
     offset += writeVarint(timestamp, buf, offset)
-    // convert to buf: yields correct length wrt utf-8 bytes + used when copying
-    const channelBuf = b4a.from(channel, "utf8")
-    validation.checkChannelName(channelBuf)
     // 7. write channelLen
     offset += writeVarint(channelBuf.length, buf, offset)
     // 8. write the channel
     offset += channelBuf.copy(buf, offset)
-    // convert to buf: yields correct length wrt utf-8 bytes + used when copying
-    const topicBuf = b4a.from(topic, "utf8")
-    validation.checkTopic(topicBuf)
     // 9. write topicLen
     offset += writeVarint(topicBuf.length, buf, offset)
     // 10. write the topic
     offset += topicBuf.copy(buf, offset)
     
-    // everything has now been written, slice out the final message from the larger buffer
-    const message = buf.subarray(0, offset)
     // now, time to make a signature
-    crypto.sign(message, secretKey)
-    validation.checkSignature(message, publicKey)
+    crypto.sign(buf, secretKey)
+    validation.checkSignature(buf, publicKey)
 
-    return message
+    return buf
   }
 
   static toJSON(buf) {
@@ -1033,8 +1121,21 @@ class JOIN_POST {
     if (!isString(channel)) { throw stringExpected("channel") }
     if (!isInteger(timestamp)) { throw integerExpected("timestamp") }
     
+    // convert to buf: yields correct length wrt utf-8 bytes + used when copying
+    const channelBuf = b4a.from(channel, "utf8")
+    validation.checkChannelName(channelBuf)
+    
+    const size = determineBufferSize([
+      {b: constants.PUBLICKEY_SIZE},
+      {b: constants.SIGNATURE_SIZE},
+      {h: links.length},
+      {v: constants.JOIN_POST},
+      {v: timestamp},
+      {s: channelBuf.length}
+    ])
+
     let offset = 0
-    const buf = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
+    const buf = b4a.alloc(size)
     // 1. write public key
     offset += publicKey.copy(buf, 0)
     // 2. make space for signature, which is done last of all.
@@ -1049,21 +1150,16 @@ class JOIN_POST {
     offset += writeVarint(constants.JOIN_POST, buf, offset)
     // 6. write timestamp
     offset += writeVarint(timestamp, buf, offset)
-    // convert to buf: yields correct length wrt utf-8 bytes + used when copying
-    const channelBuf = b4a.from(channel, "utf8")
-    validation.checkChannelName(channelBuf)
     // 7. write channelLen
     offset += writeVarint(channelBuf.length, buf, offset)
     // 8. write the channel
     offset += channelBuf.copy(buf, offset)
     
-    // everything has now been written, slice out the final message from the larger buffer
-    const message = buf.subarray(0, offset)
     // now, time to make a signature
-    crypto.sign(message, secretKey)
-    validation.checkSignature(message, publicKey)
+    crypto.sign(buf, secretKey)
+    validation.checkSignature(buf, publicKey)
 
-    return message
+    return buf
   }
 
   static toJSON(buf) {
@@ -1117,9 +1213,22 @@ class LEAVE_POST {
     if (!isArrayHashes(links)) { throw LINKS_EXPECTED }
     if (!isString(channel)) { throw stringExpected("channel") }
     if (!isInteger(timestamp)) { throw integerExpected("timestamp") }
+
+    // convert to buf: yields correct length wrt utf-8 bytes + used when copying
+    const channelBuf = b4a.from(channel, "utf8")
+    validation.checkChannelName(channelBuf)
     
+    const size = determineBufferSize([
+      {b: constants.PUBLICKEY_SIZE},
+      {b: constants.SIGNATURE_SIZE},
+      {h: links.length},
+      {v: constants.LEAVE_POST},
+      {v: timestamp},
+      {s: channelBuf.length}
+    ]) 
+
     let offset = 0
-    const buf = b4a.alloc(constants.DEFAULT_BUFFER_SIZE)
+    const buf = b4a.alloc(size)
     // 1. write public key
     offset += publicKey.copy(buf, 0)
     // 2. make space for signature, which is done last of all.
@@ -1134,21 +1243,16 @@ class LEAVE_POST {
     offset += writeVarint(constants.LEAVE_POST, buf, offset)
     // 6. write timestamp
     offset += writeVarint(timestamp, buf, offset)
-    // convert to buf: yields correct length wrt utf-8 bytes + used when copying
-    const channelBuf = b4a.from(channel, "utf8")
-    validation.checkChannelName(channelBuf)
     // 7. write channelLen
     offset += writeVarint(channelBuf.length, buf, offset)
     // 8. write the channel
     offset += channelBuf.copy(buf, offset)
     
-    // everything has now been written, slice out the final message from the larger buffer
-    const message = buf.subarray(0, offset)
     // now, time to make a signature
-    crypto.sign(message, secretKey)
-    validation.checkSignature(message, publicKey)
+    crypto.sign(buf, secretKey)
+    validation.checkSignature(buf, publicKey)
 
-    return message
+    return buf
   }
 
   static toJSON(buf) {
@@ -1193,7 +1297,6 @@ class LEAVE_POST {
     return { publicKey, signature, links, postType, channel, timestamp }
   }
 }
-
 
 // peek returns the buf type of a message
 function peekMessage (buf) {
@@ -1404,7 +1507,6 @@ function isArrayHashes (arr) {
   return false
 }
 
-
 function encodeVarintBuffer (n) {
   // take integer, return varint encoded buffer representation
   return b4a.from(varint.encode(n))
@@ -1416,6 +1518,50 @@ function writeVarint (n, buf, offset) {
   const varintBuf = encodeVarintBuffer(n)
   varintBuf.copy(buf, offset)
   return varint.encode.bytes
+}
+
+// determineBufferSize takes a list of objects, shorthand documented below, and uses them to determine and return correct length
+// in bytes for when allocating a buffer for the inputs 
+
+// SHORTHAND:
+// v: integer which will be encoded as a varint
+// b: number of bytes
+// s: string input.
+//    rep.s contains the length of the corresponding string buffer 
+//    e.g. rep.s === channelBuf.length
+// h: represents an array of HASH_SIZE sized hashes. 
+//    rep.h is the number of such entries in the actual array
+//    e.g. rep.h === hashes.length
+function determineBufferSize(inputs) {
+  let size = 0
+  // rep, short for 'representation'
+  inputs.forEach(rep => {
+    if (rep.hasOwnProperty("b")) {
+      size += rep.b
+    } else if (rep.hasOwnProperty("v")) {
+      size += varint.encode(rep.v).length
+    } else if (rep.hasOwnProperty("h")) {
+      size += rep.h * constants.HASH_SIZE + varint.encode(rep.h).length
+    } else if (rep.hasOwnProperty("s")) {
+      size += rep.s + varint.encode(rep.s).length
+    }
+  })
+  return size
+}
+
+function countPostsBytes (posts) {
+  return posts.reduce((acc, p) => {
+    acc += p.length + varint.encode(p.length).length /* varint.encode term accounts for the postLen varint */
+    return acc
+  }, 0) // init to 0
+}
+
+function countChannelsBytes(channels) {
+  return channels.reduce((acc, c) => {
+    const len = b4a.from(c).length
+    acc += len + varint.encode(len).length /* varint.encode term accounts for the channelLen varint */
+    return acc
+  }, 0) // init to 0
 }
 
 module.exports = { 
