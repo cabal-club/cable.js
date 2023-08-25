@@ -10,12 +10,13 @@ const varint = require("varint")
 const crypto = require("./cryptography.js")
 const validation = require("./validation.js")
 
-const EMPTY_CIRCUIT_ID = b4a.alloc(4).fill(0)
+const EMPTY_CIRCUIT_ID = b4a.alloc(4, 0)
 
 // TODO (2023-01-11): 
 // would like to abstract away `offset += varint.decode.bytes` in case we swap library / opt for self-authored standard
 
 // TODO (2023-04-18): introduce specific error classes to be able to distinguish between e.g. missing # of parameters (fatal impl error) and lengths of strings (user behaviour, recoverable)
+
 const LINKS_EXPECTED = new Error("expected links to contain an array of hash-sized buffers")
 const HASHES_EXPECTED = new Error("expected hashes to contain an array of hash-sized buffers")
 const STRINGS_EXPECTED = new Error("expected channels to contain an array of strings")
@@ -58,14 +59,14 @@ class HASH_RESPONSE {
     // 1. write message type
     offset += writeVarint(constants.HASH_RESPONSE, frame, offset)
     // 2. write circuitid (unused spec rev 2023-04)
-    offset += EMPTY_CIRCUIT_ID.copy(frame, offset)
+    offset += b4a.copy(EMPTY_CIRCUIT_ID, frame, offset)
     // 3. write reqid
-    offset += reqid.copy(frame, offset)
+    offset += b4a.copy(reqid, frame, offset)
     // 4. write amount of hashes (hash_count)
     offset += writeVarint(hashes.length, frame, offset)
     // 5. write the hashes themselves
     hashes.forEach(hash => {
-      offset += hash.copy(frame, offset)
+      offset += b4a.copy(hash, frame, offset)
     })
     return prependMsgLen(frame)
   }
@@ -76,7 +77,7 @@ class HASH_RESPONSE {
     // 1. get msgLen
     const msgLen = decodeVarintSlice(buf, 0)
     offset += varint.decode.bytes
-    if (!isBufferSize(buf.subarray(offset), msgLen)) { throw bufferExpected("remaining buf", msgLen) }
+    if (!isBufferSize(buf.slice(offset), msgLen)) { throw bufferExpected("remaining buf", msgLen) }
     // 2. get msgType
     const msgType = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -86,7 +87,7 @@ class HASH_RESPONSE {
     // 3. skip circuit (unused spec rev 2023-04)
     offset += constants.CIRCUITID_SIZE
     // 4. get reqid
-    const reqid = buf.subarray(offset, offset+constants.REQID_SIZE)
+    const reqid = buf.slice(offset, offset+constants.REQID_SIZE)
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
     offset += constants.REQID_SIZE
     // 5. get hashCount
@@ -95,7 +96,7 @@ class HASH_RESPONSE {
     // 6. use hashCount to slice out the hashes
     let hashes = []
     for (let i = 0; i < hashCount; i++) {
-      hashes.push(buf.subarray(offset, offset + constants.HASH_SIZE))
+      hashes.push(buf.slice(offset, offset + constants.HASH_SIZE))
       offset += constants.HASH_SIZE
     }
     if (!isArrayHashes(hashes)) { throw HASHES_EXPECTED }
@@ -124,15 +125,15 @@ class POST_RESPONSE {
     // 1. write message type
     offset += writeVarint(constants.POST_RESPONSE, frame, offset)
     // 2. write circuitid (unused spec rev 2023-04)
-    offset += EMPTY_CIRCUIT_ID.copy(frame, offset)
+    offset += b4a.copy(EMPTY_CIRCUIT_ID, frame, offset)
     // 3. write reqid
-    offset += reqid.copy(frame, offset)
+    offset += b4a.copy(reqid, frame, offset)
     // 4. exhaust array of posts
     for (let i = 0; i < posts.length; i++) {
       // 4.1 write postLen 
       offset += writeVarint(posts[i].length, frame, offset)
       // 4.2 then write the post itself
-      offset += posts[i].copy(frame, offset)
+      offset += b4a.copy(posts[i], frame, offset)
     }
     // 4.3 finally: write postLen = 0 to signal end of data
     offset += writeVarint(0, frame, offset)
@@ -147,7 +148,7 @@ class POST_RESPONSE {
     const msgLen = decodeVarintSlice(buf, 0)
     offset += varint.decode.bytes
     msgLenBytes = varint.decode.bytes
-    if (!isBufferSize(buf.subarray(offset), msgLen)) { throw bufferExpected("remaining buf", msgLen) }
+    if (!isBufferSize(buf.slice(offset), msgLen)) { throw bufferExpected("remaining buf", msgLen) }
     // 2. get msgType
     const msgType = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -157,7 +158,7 @@ class POST_RESPONSE {
     // 3. skip circuit (unused spec rev 2023-04)
     offset += constants.CIRCUITID_SIZE
     // 4. get reqid
-    const reqid = buf.subarray(offset, offset+constants.REQID_SIZE)
+    const reqid = buf.slice(offset, offset+constants.REQID_SIZE)
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
     offset += constants.REQID_SIZE
     // 5. remaining buffer consists of [postLen, post] segments
@@ -172,7 +173,7 @@ class POST_RESPONSE {
       // if postLen === 0 then we have no more posts
       if (postLen === 0) { break }
       // 6. use postLen to slice out the hashes
-      posts.push(buf.subarray(offset, offset + postLen))
+      posts.push(buf.slice(offset, offset + postLen))
       offset += postLen
       
       remaining = msgLen - offset + msgLenBytes
@@ -189,7 +190,7 @@ class POST_REQUEST {
     if (arguments.length !== 3) { throw wrongNumberArguments(3, arguments.length, "create(reqid, ttl, hashes)") }
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
     if (!isInteger(ttl)) { throw integerExpected("ttl") }
-    if (!ttlRangecorrect(ttl)) { throw ttlRangeExpected(ttl) }
+    if (!ttlRangeCorrect(ttl)) { throw ttlRangeExpected(ttl) }
     if (!isArrayHashes(hashes)) { throw HASHES_EXPECTED }
 
     const size = determineBufferSize([
@@ -206,16 +207,16 @@ class POST_REQUEST {
     // 1. write message type
     offset += writeVarint(constants.POST_REQUEST, frame, offset)
     // 2. write circuitid (unused spec rev 2023-04)
-    offset += EMPTY_CIRCUIT_ID.copy(frame, offset)
+    offset += b4a.copy(EMPTY_CIRCUIT_ID, frame, offset)
     // 3. write reqid
-    offset += reqid.copy(frame, offset)
+    offset += b4a.copy(reqid, frame, offset)
     // 4. write ttl
     offset += writeVarint(ttl, frame, offset)
     // 5. write amount of hashes (hash_count varint)
     offset += writeVarint(hashes.length, frame, offset)
     // 6. write the hashes themselves
     hashes.forEach(hash => {
-      offset += hash.copy(frame, offset)
+      offset += b4a.copy(hash, frame, offset)
     })
     return prependMsgLen(frame)
   }
@@ -227,7 +228,7 @@ class POST_REQUEST {
     // 1. get msgLen
     const msgLen = decodeVarintSlice(buf, 0)
     offset += varint.decode.bytes
-    if (!isBufferSize(buf.subarray(offset), msgLen)) { throw bufferExpected("remaining buf", msgLen) }
+    if (!isBufferSize(buf.slice(offset), msgLen)) { throw bufferExpected("remaining buf", msgLen) }
     // 2. get msgType
     const msgType = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -237,20 +238,20 @@ class POST_REQUEST {
     // 3. skip circuit (unused spec rev 2023-04)
     offset += constants.CIRCUITID_SIZE
     // 4. get reqid
-    const reqid = buf.subarray(offset, offset+constants.REQID_SIZE)
+    const reqid = buf.slice(offset, offset+constants.REQID_SIZE)
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
     offset += constants.REQID_SIZE
     // 5. get ttl
     const ttl = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    if (!ttlRangecorrect(ttl)) { throw ttlRangeExpected(ttl) }
+    if (!ttlRangeCorrect(ttl)) { throw ttlRangeExpected(ttl) }
     // 6. get hashCount
     const hashCount = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
     // 7. use hashCount to slice out the hashes
     let hashes = []
     for (let i = 0; i < hashCount; i++) {
-      hashes.push(buf.subarray(offset, offset + constants.HASH_SIZE))
+      hashes.push(buf.slice(offset, offset + constants.HASH_SIZE))
       offset += constants.HASH_SIZE
     }
     if (!isArrayHashes(hashes)) { throw HASHES_EXPECTED }
@@ -269,7 +270,7 @@ class CANCEL_REQUEST {
     if (arguments.length !== 3) { throw wrongNumberArguments(3, arguments.length, "create(reqid, ttl, cancelid)") }
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
     if (!isInteger(ttl)) { throw integerExpected("ttl") }
-    if (!ttlRangecorrect(ttl)) { throw ttlRangeExpected(ttl) }
+    if (!ttlRangeCorrect(ttl)) { throw ttlRangeExpected(ttl) }
     if (!isBufferSize(cancelid, constants.REQID_SIZE)) { throw bufferExpected("cancelid", constants.REQID_SIZE) }
 
     const size = determineBufferSize([
@@ -286,13 +287,13 @@ class CANCEL_REQUEST {
     // 1. write message type
     offset += writeVarint(constants.CANCEL_REQUEST, frame, offset)
     // 2. write circuitid (unused spec rev 2023-04)
-    offset += EMPTY_CIRCUIT_ID.copy(frame, offset)
+    offset += b4a.copy(EMPTY_CIRCUIT_ID, frame, offset)
     // 3. write reqid
-    offset += reqid.copy(frame, offset)
+    offset += b4a.copy(reqid, frame, offset)
     // 3. write ttl (unused)
     offset += writeVarint(ttl, frame, offset)
     // 4. write cancelid
-    offset += cancelid.copy(frame, offset)
+    offset += b4a.copy(cancelid, frame, offset)
 
     return prependMsgLen(frame)
   }
@@ -304,7 +305,7 @@ class CANCEL_REQUEST {
     // 1. get msgLen
     const msgLen = decodeVarintSlice(buf, 0)
     offset += varint.decode.bytes
-    if (!isBufferSize(buf.subarray(offset), msgLen)) { throw bufferExpected("remaining buf", msgLen) }
+    if (!isBufferSize(buf.slice(offset), msgLen)) { throw bufferExpected("remaining buf", msgLen) }
     // 2. get msgType
     const msgType = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -315,14 +316,14 @@ class CANCEL_REQUEST {
     // 3. skip circuit (unused spec rev 2023-04)
     offset += constants.CIRCUITID_SIZE
     // 4. get reqid
-    const reqid = buf.subarray(offset, offset+constants.REQID_SIZE)
+    const reqid = buf.slice(offset, offset+constants.REQID_SIZE)
     offset += constants.REQID_SIZE
     // 5. get ttl (unused for cancel request)
     const ttl = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    if (!ttlRangecorrect(ttl)) { throw ttlRangeExpected(ttl) }
+    if (!ttlRangeCorrect(ttl)) { throw ttlRangeExpected(ttl) }
     // 6. get cancelid
-    const cancelid = buf.subarray(offset, offset+constants.REQID_SIZE)
+    const cancelid = buf.slice(offset, offset+constants.REQID_SIZE)
     offset += constants.REQID_SIZE
 
     return { msgLen, msgType, reqid, ttl, cancelid }
@@ -334,7 +335,7 @@ class TIME_RANGE_REQUEST {
     if (arguments.length !== 6) { throw wrongNumberArguments(6, arguments.length, "create(reqid, ttl, channel, timeStart, timeEnd, limit)") }
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
     if (!isInteger(ttl)) { throw integerExpected("ttl") }
-    if (!ttlRangecorrect(ttl)) { throw ttlRangeExpected(ttl) }
+    if (!ttlRangeCorrect(ttl)) { throw ttlRangeExpected(ttl) }
     if (!isString(channel)) { throw stringExpected("channel") }
     if (!isInteger(timeStart)) { throw integerExpected("timeStart") }
     if (!isInteger(timeEnd)) { throw integerExpected("timeEnd") }
@@ -361,15 +362,15 @@ class TIME_RANGE_REQUEST {
     // 1. write message type
     offset += writeVarint(constants.TIME_RANGE_REQUEST, frame, offset)
     // 2. write circuitid (unused spec rev 2023-04)
-    offset += EMPTY_CIRCUIT_ID.copy(frame, offset)
+    offset += b4a.copy(EMPTY_CIRCUIT_ID, frame, offset)
     // 3. write reqid
-    offset += reqid.copy(frame, offset)
+    offset += b4a.copy(reqid, frame, offset)
     // 4. write ttl
     offset += writeVarint(ttl, frame, offset)
     // 5. write channel_len
     offset += writeVarint(channelBuf.length, frame, offset)
     // 6. write the channel
-    offset += channelBuf.copy(frame, offset)
+    offset += b4a.copy(channelBuf, frame, offset)
     // 7. write time_start
     offset += writeVarint(timeStart, frame, offset)
     // 8. write time_end
@@ -386,7 +387,7 @@ class TIME_RANGE_REQUEST {
     // 1. get msgLen
     const msgLen = decodeVarintSlice(buf, 0)
     offset += varint.decode.bytes
-    if (!isBufferSize(buf.subarray(offset), msgLen)) { throw bufferExpected("remaining buf", msgLen) }
+    if (!isBufferSize(buf.slice(offset), msgLen)) { throw bufferExpected("remaining buf", msgLen) }
     // 2. get msgType
     const msgType = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -396,20 +397,20 @@ class TIME_RANGE_REQUEST {
     // 3. skip circuit (unused spec rev 2023-04)
     offset += constants.CIRCUITID_SIZE
     // 4. get reqid
-    const reqid = buf.subarray(offset, offset+constants.REQID_SIZE)
+    const reqid = buf.slice(offset, offset+constants.REQID_SIZE)
     offset += constants.REQID_SIZE
     // 5. get ttl
     const ttl = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    if (!ttlRangecorrect(ttl)) { throw ttlRangeExpected(ttl) }
+    if (!ttlRangeCorrect(ttl)) { throw ttlRangeExpected(ttl) }
     // 6. get channelLen
     const channelLen = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
     // 7. use channelLen to slice out the channel
-    const channelBuf = buf.subarray(offset, offset + channelLen)
+    const channelBuf = buf.slice(offset, offset + channelLen)
     offset += channelLen
     validation.checkChannelName(channelBuf)
-    const channel = channelBuf.toString("utf8")
+    const channel = b4a.toString(channelBuf, "utf8")
     // 8. get timeStart
     const timeStart = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -433,7 +434,7 @@ class CHANNEL_STATE_REQUEST {
     if (arguments.length !== 4) { throw wrongNumberArguments(4, arguments.length, "create(reqid, ttl, channel, future)") }
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
     if (!isInteger(ttl)) { throw integerExpected("ttl") }
-    if (!ttlRangecorrect(ttl)) { throw ttlRangeExpected(ttl) }
+    if (!ttlRangeCorrect(ttl)) { throw ttlRangeExpected(ttl) }
     if (!isString(channel)) { throw stringExpected("channel") }
     if (!isInteger(future)) { throw integerExpected("future") }
 
@@ -456,15 +457,15 @@ class CHANNEL_STATE_REQUEST {
     // 1. write message type
     offset += writeVarint(constants.CHANNEL_STATE_REQUEST, frame, offset)
     // 2. write circuitid (unused spec rev 2023-04)
-    offset += EMPTY_CIRCUIT_ID.copy(frame, offset)
+    offset += b4a.copy(EMPTY_CIRCUIT_ID, frame, offset)
     // 3. write reqid
-    offset += reqid.copy(frame, offset)
+    offset += b4a.copy(reqid, frame, offset)
     // 4. write ttl
     offset += writeVarint(ttl, frame, offset)
     // 5. write channel_len
     offset += writeVarint(channelBuf.length, frame, offset)
     // 6. write the channel
-    offset += channelBuf.copy(frame, offset)
+    offset += b4a.copy(channelBuf, frame, offset)
     // 7. write future
     offset += writeVarint(future, frame, offset)
     return prependMsgLen(frame)
@@ -476,7 +477,7 @@ class CHANNEL_STATE_REQUEST {
     // 1. get msgLen
     const msgLen = decodeVarintSlice(buf, 0)
     offset += varint.decode.bytes
-    if (!isBufferSize(buf.subarray(offset), msgLen)) { throw bufferExpected("remaining buf", msgLen) }
+    if (!isBufferSize(buf.slice(offset), msgLen)) { throw bufferExpected("remaining buf", msgLen) }
     // 2. get msgType
     const msgType = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -486,21 +487,21 @@ class CHANNEL_STATE_REQUEST {
     // 3. skip circuit (unused spec rev 2023-04)
     offset += constants.CIRCUITID_SIZE
     // 4. get reqid
-    const reqid = buf.subarray(offset, offset+constants.REQID_SIZE)
+    const reqid = buf.slice(offset, offset+constants.REQID_SIZE)
     offset += constants.REQID_SIZE
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
     // 5. get ttl
     const ttl = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    if (!ttlRangecorrect(ttl)) { throw ttlRangeExpected(ttl) }
+    if (!ttlRangeCorrect(ttl)) { throw ttlRangeExpected(ttl) }
     // 6. get channelLen
     const channelLen = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
     // 7. use channelLen to slice out channel
-    const channelBuf = buf.subarray(offset, offset + channelLen)
+    const channelBuf = buf.slice(offset, offset + channelLen)
     offset += channelLen
     validation.checkChannelName(channelBuf)
-    const channel = channelBuf.toString("utf8")
+    const channel = b4a.toString(channelBuf, "utf8")
     // 8. get future
     const future = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -518,7 +519,7 @@ class CHANNEL_LIST_REQUEST {
     if (arguments.length !== 4) { throw wrongNumberArguments(4, arguments.length, "create(reqid, ttl, offset, limit)") }
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
     if (!isInteger(ttl)) { throw integerExpected("ttl") }
-    if (!ttlRangecorrect(ttl)) { throw ttlRangeExpected(ttl) }
+    if (!ttlRangeCorrect(ttl)) { throw ttlRangeExpected(ttl) }
     if (!isInteger(argOffset)) { throw integerExpected("offset") }
     if (!isInteger(limit)) { throw integerExpected("limit") }
 
@@ -537,9 +538,9 @@ class CHANNEL_LIST_REQUEST {
     // 1. write message type
     offset += writeVarint(constants.CHANNEL_LIST_REQUEST, frame, offset)
     // 2. write circuitid (unused spec rev 2023-04)
-    offset += EMPTY_CIRCUIT_ID.copy(frame, offset)
+    offset += b4a.copy(EMPTY_CIRCUIT_ID, frame, offset)
     // 3. write reqid
-    offset += reqid.copy(frame, offset)
+    offset += b4a.copy(reqid, frame, offset)
     // 4. write ttl
     offset += writeVarint(ttl, frame, offset)
     // 5. write offset 
@@ -556,7 +557,7 @@ class CHANNEL_LIST_REQUEST {
     // 1. get msgLen
     const msgLen = decodeVarintSlice(buf, 0)
     offset += varint.decode.bytes
-    if (!isBufferSize(buf.subarray(offset), msgLen)) { throw bufferExpected("remaining buf", msgLen) }
+    if (!isBufferSize(buf.slice(offset), msgLen)) { throw bufferExpected("remaining buf", msgLen) }
     // 2. get msgType
     const msgType = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -566,13 +567,13 @@ class CHANNEL_LIST_REQUEST {
     // 3. skip circuit (unused spec rev 2023-04)
     offset += constants.CIRCUITID_SIZE
     // 4. get reqid
-    const reqid = buf.subarray(offset, offset+constants.REQID_SIZE)
+    const reqid = buf.slice(offset, offset+constants.REQID_SIZE)
     offset += constants.REQID_SIZE
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
     // 5. get ttl
     const ttl = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    if (!ttlRangecorrect(ttl)) { throw ttlRangeExpected(ttl) }
+    if (!ttlRangeCorrect(ttl)) { throw ttlRangeExpected(ttl) }
     // 6. get offset
     const argOffset = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -608,9 +609,9 @@ class CHANNEL_LIST_RESPONSE {
     // 1. write message type
     offset += writeVarint(constants.CHANNEL_LIST_RESPONSE, frame, offset)
     // 2. write circuitid (unused spec rev 2023-04)
-    offset += EMPTY_CIRCUIT_ID.copy(frame, offset)
+    offset += b4a.copy(EMPTY_CIRCUIT_ID, frame, offset)
     // 3. write reqid
-    offset += reqid.copy(frame, offset)
+    offset += b4a.copy(reqid, frame, offset)
     // 4. write channels
     channels.forEach(channel => {
       // convert to buf: yields correct length wrt utf-8 bytes + used when copying
@@ -619,7 +620,7 @@ class CHANNEL_LIST_RESPONSE {
       // 4.1 write channelLen
       offset += writeVarint(channelBuf.length, frame, offset)
       // 4.2 write channel
-      offset += channelBuf.copy(frame, offset)
+      offset += b4a.copy(channelBuf, frame, offset)
     })
     // 4.3 finally: write a channelLen = 0 to signal end of channel data
     offset += writeVarint(0, frame, offset)
@@ -635,7 +636,7 @@ class CHANNEL_LIST_RESPONSE {
     const msgLen = decodeVarintSlice(buf, 0)
     offset += varint.decode.bytes
     msgLenBytes = varint.decode.bytes
-    if (!isBufferSize(buf.subarray(offset), msgLen)) { throw bufferExpected("remaining buf", msgLen) }
+    if (!isBufferSize(buf.slice(offset), msgLen)) { throw bufferExpected("remaining buf", msgLen) }
     // 2. get msgType
     const msgType = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -645,7 +646,7 @@ class CHANNEL_LIST_RESPONSE {
     // 3. skip circuit (unused spec rev 2023-04)
     offset += constants.CIRCUITID_SIZE
     // 4. get reqid
-    const reqid = buf.subarray(offset, offset+constants.REQID_SIZE)
+    const reqid = buf.slice(offset, offset+constants.REQID_SIZE)
     offset += constants.REQID_SIZE
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
     // 5. get channels
@@ -660,10 +661,10 @@ class CHANNEL_LIST_RESPONSE {
       // if channelLen === 0 then we have no more channels in this response
       if (channelLen === 0) { break }
       // 6. use channelLen to slice out the channel
-      const channelBuf = buf.subarray(offset, offset + channelLen)
+      const channelBuf = buf.slice(offset, offset + channelLen)
       offset += channelLen
       validation.checkChannelName(channelBuf)
-      const channel = channelBuf.toString("utf8")
+      const channel = b4a.toString(channelBuf, "utf8")
       channels.push(channel)
       remaining = msgLen - offset + msgLenBytes
     }
@@ -701,14 +702,14 @@ class TEXT_POST {
     let offset = 0
     const buf = b4a.alloc(size)
     // 1. write public key
-    offset += publicKey.copy(buf, 0)
+    offset += b4a.copy(publicKey, buf, 0)
     // 2. make space for signature, which is done last of all.
     offset += constants.SIGNATURE_SIZE
     // 3. write num_links, whose entries each represents a hash i.e. a buffer
     offset += writeVarint(links.length, buf, offset)
     // 4. write the links themselves
     links.forEach(link => {
-      offset += link.copy(buf, offset)
+      offset += b4a.copy(link, buf, offset)
     })
     // 5. write postType
     offset += writeVarint(constants.TEXT_POST, buf, offset)
@@ -717,11 +718,11 @@ class TEXT_POST {
     // 7. write channelLen
     offset += writeVarint(channelBuf.length, buf, offset)
     // 8. write the channel
-    offset += channelBuf.copy(buf, offset)
+    offset += b4a.copy(channelBuf, buf, offset)
     // 9. write textLen
     offset += writeVarint(textBuf.length, buf, offset)
     // 10. write the text
-    offset += textBuf.copy(buf, offset)
+    offset += b4a.copy(textBuf, buf, offset)
 
     // now, time to make a signature
     crypto.sign(buf, secretKey)
@@ -734,10 +735,10 @@ class TEXT_POST {
     // { publicKey, signature, links, postType, channel, timestamp, text }
     let offset = 0
     // 1. get publicKey
-    const publicKey = buf.subarray(0, constants.PUBLICKEY_SIZE)
+    const publicKey = buf.slice(0, constants.PUBLICKEY_SIZE)
     offset += constants.PUBLICKEY_SIZE
     // 2. get signature
-    const signature = buf.subarray(offset, offset + constants.SIGNATURE_SIZE)
+    const signature = buf.slice(offset, offset + constants.SIGNATURE_SIZE)
     offset += constants.SIGNATURE_SIZE
     // verify signature is correct
     validation.checkSignature(buf, publicKey)
@@ -747,7 +748,7 @@ class TEXT_POST {
     // 4. use numLinks to slice out the links
     let links = []
     for (let i = 0; i < numLinks; i++) {
-      links.push(buf.subarray(offset, offset + constants.HASH_SIZE))
+      links.push(buf.slice(offset, offset + constants.HASH_SIZE))
       offset += constants.HASH_SIZE
     }
     if (!isArrayHashes(links)) { throw LINKS_EXPECTED }
@@ -765,18 +766,18 @@ class TEXT_POST {
     const channelLen = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
     // 8. use channelLen to get channel
-    const channelBuf = buf.subarray(offset, offset + channelLen)
+    const channelBuf = buf.slice(offset, offset + channelLen)
     offset += channelLen
     validation.checkChannelName(channelBuf)
-    const channel = channelBuf.toString("utf8")
+    const channel = b4a.toString(channelBuf, "utf8")
     // 9. get textLen
     const textLen = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
     // 10. use textLen to get text
-    const textBuf = buf.subarray(offset, offset + textLen)
+    const textBuf = buf.slice(offset, offset + textLen)
     offset += textLen
     validation.checkPostText(textBuf)
-    const text = textBuf.toString("utf8")
+    const text = b4a.toString(textBuf, "utf8")
 
     return { publicKey, signature, links, postType, channel, timestamp, text }
   }
@@ -803,14 +804,14 @@ class DELETE_POST {
     let offset = 0
     const buf = b4a.alloc(size)
     // 1. write public key
-    offset += publicKey.copy(buf, 0)
+    offset += b4a.copy(publicKey, buf, 0)
     // 2. make space for signature, which is done last of all.
     offset += constants.SIGNATURE_SIZE
     // 3. write num_links, whose entries each represents a hash i.e. a buffer
     offset += writeVarint(links.length, buf, offset)
     // 4. write the links themselves
     links.forEach(link => {
-      offset += link.copy(buf, offset)
+      offset += b4a.copy(link, buf, offset)
     })
     // 5. write postType
     offset += writeVarint(constants.DELETE_POST, buf, offset)
@@ -820,7 +821,7 @@ class DELETE_POST {
     offset += writeVarint(hashes.length, buf, offset)
     // 8. write the hashes themselves
     hashes.forEach(hash => {
-      offset += hash.copy(buf, offset)
+      offset += b4a.copy(hash, buf, offset)
     })
     
     // now, time to make a signature
@@ -834,10 +835,10 @@ class DELETE_POST {
     // { publicKey, signature, links, postType, timestamp, hash }
     let offset = 0
     // 1. get publicKey
-    const publicKey = buf.subarray(0, constants.PUBLICKEY_SIZE)
+    const publicKey = buf.slice(0, constants.PUBLICKEY_SIZE)
     offset += constants.PUBLICKEY_SIZE
     // 2. get signature
-    const signature = buf.subarray(offset, offset + constants.SIGNATURE_SIZE)
+    const signature = buf.slice(offset, offset + constants.SIGNATURE_SIZE)
     offset += constants.SIGNATURE_SIZE
     // verify signature is correct
     validation.checkSignature(buf, publicKey)
@@ -847,7 +848,7 @@ class DELETE_POST {
     // 4. use numLinks to slice out the links
     let links = []
     for (let i = 0; i < numLinks; i++) {
-      links.push(buf.subarray(offset, offset + constants.HASH_SIZE))
+      links.push(buf.slice(offset, offset + constants.HASH_SIZE))
       offset += constants.HASH_SIZE
     }
     if (!isArrayHashes(links)) { throw LINKS_EXPECTED }
@@ -866,7 +867,7 @@ class DELETE_POST {
     let hashes = []
     // 8. get the hashes
     for (let i = 0; i < numDeletions; i++) {
-      hashes.push(buf.subarray(offset, offset + constants.HASH_SIZE))
+      hashes.push(buf.slice(offset, offset + constants.HASH_SIZE))
       offset += constants.HASH_SIZE
     }
     if (!isArrayHashes(hashes)) { throw HASHES_EXPECTED }
@@ -909,14 +910,14 @@ class INFO_POST {
     let offset = 0
     const buf = b4a.alloc(size)
     // 1. write public key
-    offset += publicKey.copy(buf, 0)
+    offset += b4a.copy(publicKey, buf, 0)
     // 2. make space for signature, which is done last of all.
     offset += constants.SIGNATURE_SIZE
     // 3. write num_links, whose entries each represents a hash i.e. a buffer
     offset += writeVarint(links.length, buf, offset)
     // 4. write the links themselves
     links.forEach(link => {
-      offset += link.copy(buf, offset)
+      offset += b4a.copy(link, buf, offset)
     })
     // 5. write postType
     offset += writeVarint(constants.INFO_POST, buf, offset)
@@ -927,11 +928,11 @@ class INFO_POST {
     // 7. write keyLen
     offset += writeVarint(keyBuf.length, buf, offset)
     // 8. write the key
-    offset += keyBuf.copy(buf, offset)
+    offset += b4a.copy(keyBuf, buf, offset)
     // 9. write valueLen
     offset += writeVarint(valueBuf.length, buf, offset)
     // 10. write the value
-    offset += valueBuf.copy(buf, offset)
+    offset += b4a.copy(valueBuf, buf, offset)
     // 11. finally: signal end of key-val list by writing keyN_len = 0
     offset += writeVarint(0, buf, offset)
     
@@ -946,10 +947,10 @@ class INFO_POST {
     // { publicKey, signature, links, postType, timestamp, key, value }
     let offset = 0
     // 1. get publicKey
-    const publicKey = buf.subarray(0, constants.PUBLICKEY_SIZE)
+    const publicKey = buf.slice(0, constants.PUBLICKEY_SIZE)
     offset += constants.PUBLICKEY_SIZE
     // 2. get signature
-    const signature = buf.subarray(offset, offset + constants.SIGNATURE_SIZE)
+    const signature = buf.slice(offset, offset + constants.SIGNATURE_SIZE)
     offset += constants.SIGNATURE_SIZE
     // verify signature is correct
     validation.checkSignature(buf, publicKey)
@@ -959,7 +960,7 @@ class INFO_POST {
     // 4. use numLinks to slice out the links
     let links = []
     for (let i = 0; i < numLinks; i++) {
-      links.push(buf.subarray(offset, offset + constants.HASH_SIZE))
+      links.push(buf.slice(offset, offset + constants.HASH_SIZE))
       offset += constants.HASH_SIZE
     }
     if (!isArrayHashes(links)) { throw LINKS_EXPECTED }
@@ -976,21 +977,21 @@ class INFO_POST {
     const keyLen = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
     // 8. use keyLen to get key
-    const keyBuf = buf.subarray(offset, offset + keyLen)
+    const keyBuf = buf.slice(offset, offset + keyLen)
     offset += keyLen
     validation.checkInfoKey(keyBuf)
-    const key = keyBuf.toString("utf8")
+    const key = b4a.toString(keyBuf, "utf8")
     // 9. get valueLen
     const valueLen = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
     // 10. use valueLen to get value
-    const valueBuf = buf.subarray(offset, offset + valueLen)
+    const valueBuf = buf.slice(offset, offset + valueLen)
     offset += valueLen
     validation.checkInfoValue(valueBuf)
     if (key === "name") {
       validation.checkUsername(valueBuf)
     }
-    const value = valueBuf.toString("utf8")
+    const value = b4a.toString(valueBuf, "utf8")
     // TODO (2023-07-12): if spec's post/info is expanded with more than 1 key (name), improve this routine
     // 11. get terminating keyN_len (should be zero)
     const finalValueLen = decodeVarintSlice(buf, offset)
@@ -1032,14 +1033,14 @@ class TOPIC_POST {
     let offset = 0
     const buf = b4a.alloc(size)
     // 1. write public key
-    offset += publicKey.copy(buf, 0)
+    offset += b4a.copy(publicKey, buf, 0)
     // 2. make space for signature, which is done last of all.
     offset += constants.SIGNATURE_SIZE
     // 3. write num_links, whose entries each represents a hash i.e. a buffer
     offset += writeVarint(links.length, buf, offset)
     // 4. write the links themselves
     links.forEach(link => {
-      offset += link.copy(buf, offset)
+      offset += b4a.copy(link, buf, offset)
     })
     // 5. write postType
     offset += writeVarint(constants.TOPIC_POST, buf, offset)
@@ -1048,11 +1049,11 @@ class TOPIC_POST {
     // 7. write channelLen
     offset += writeVarint(channelBuf.length, buf, offset)
     // 8. write the channel
-    offset += channelBuf.copy(buf, offset)
+    offset += b4a.copy(channelBuf, buf, offset)
     // 9. write topicLen
     offset += writeVarint(topicBuf.length, buf, offset)
     // 10. write the topic
-    offset += topicBuf.copy(buf, offset)
+    offset += b4a.copy(topicBuf, buf, offset)
     
     // now, time to make a signature
     crypto.sign(buf, secretKey)
@@ -1065,10 +1066,10 @@ class TOPIC_POST {
     // { publicKey, signature, links, postType, channel, timestamp, topic }
     let offset = 0
     // 1. get publicKey
-    const publicKey = buf.subarray(0, constants.PUBLICKEY_SIZE)
+    const publicKey = buf.slice(0, constants.PUBLICKEY_SIZE)
     offset += constants.PUBLICKEY_SIZE
     // 2. get signature
-    const signature = buf.subarray(offset, offset + constants.SIGNATURE_SIZE)
+    const signature = buf.slice(offset, offset + constants.SIGNATURE_SIZE)
     offset += constants.SIGNATURE_SIZE
     // verify signature is correct
     validation.checkSignature(buf, publicKey)
@@ -1078,7 +1079,7 @@ class TOPIC_POST {
     // 4. use numLinks to slice out the links
     let links = []
     for (let i = 0; i < numLinks; i++) {
-      links.push(buf.subarray(offset, offset + constants.HASH_SIZE))
+      links.push(buf.slice(offset, offset + constants.HASH_SIZE))
       offset += constants.HASH_SIZE
     }
     if (!isArrayHashes(links)) { throw LINKS_EXPECTED }
@@ -1095,18 +1096,18 @@ class TOPIC_POST {
     const channelLen = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
     // 8. use channelLen to get channel
-    const channelBuf = buf.subarray(offset, offset + channelLen)
+    const channelBuf = buf.slice(offset, offset + channelLen)
     offset += channelLen
     validation.checkChannelName(channelBuf)
-    const channel = channelBuf.toString("utf8")
+    const channel = b4a.toString(channelBuf, "utf8")
     // 9. get topicLen
     const topicLen = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
     // 10. use topicLen to get topic
-    const topicBuf = buf.subarray(offset, offset + topicLen)
+    const topicBuf = buf.slice(offset, offset + topicLen)
     offset += topicLen
     validation.checkTopic(topicBuf)
-    const topic = topicBuf.toString("utf8")
+    const topic = b4a.toString(topicBuf, "utf8")
 
     return { publicKey, signature, links, postType, channel, timestamp, topic }
   }
@@ -1137,14 +1138,14 @@ class JOIN_POST {
     let offset = 0
     const buf = b4a.alloc(size)
     // 1. write public key
-    offset += publicKey.copy(buf, 0)
+    offset += b4a.copy(publicKey, buf, 0)
     // 2. make space for signature, which is done last of all.
     offset += constants.SIGNATURE_SIZE
     // 3. write num_links, whose entries each represents a hash i.e. a buffer
     offset += writeVarint(links.length, buf, offset)
     // 4. write the links themselves
     links.forEach(link => {
-      offset += link.copy(buf, offset)
+      offset += b4a.copy(link, buf, offset)
     })
     // 5. write postType
     offset += writeVarint(constants.JOIN_POST, buf, offset)
@@ -1153,7 +1154,7 @@ class JOIN_POST {
     // 7. write channelLen
     offset += writeVarint(channelBuf.length, buf, offset)
     // 8. write the channel
-    offset += channelBuf.copy(buf, offset)
+    offset += b4a.copy(channelBuf, buf, offset)
     
     // now, time to make a signature
     crypto.sign(buf, secretKey)
@@ -1166,10 +1167,10 @@ class JOIN_POST {
     // { publicKey, signature, links, postType, channel, timestamp }
     let offset = 0
     // 1. get publicKey
-    const publicKey = buf.subarray(0, constants.PUBLICKEY_SIZE)
+    const publicKey = buf.slice(0, constants.PUBLICKEY_SIZE)
     offset += constants.PUBLICKEY_SIZE
     // 2. get signature
-    const signature = buf.subarray(offset, offset + constants.SIGNATURE_SIZE)
+    const signature = buf.slice(offset, offset + constants.SIGNATURE_SIZE)
     offset += constants.SIGNATURE_SIZE
     // verify signature is correct
     validation.checkSignature(buf, publicKey)
@@ -1179,7 +1180,7 @@ class JOIN_POST {
     // 4. use numLinks to slice out the links
     let links = []
     for (let i = 0; i < numLinks; i++) {
-      links.push(buf.subarray(offset, offset + constants.HASH_SIZE))
+      links.push(buf.slice(offset, offset + constants.HASH_SIZE))
       offset += constants.HASH_SIZE
     }
     if (!isArrayHashes(links)) { throw LINKS_EXPECTED }
@@ -1196,10 +1197,10 @@ class JOIN_POST {
     const channelLen = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
     // 8. use channelLen to get channel
-    const channelBuf = buf.subarray(offset, offset + channelLen)
+    const channelBuf = buf.slice(offset, offset + channelLen)
     offset += channelLen
     validation.checkChannelName(channelBuf)
-    const channel = channelBuf.toString("utf8")
+    const channel = b4a.toString(channelBuf, "utf8")
 
     return { publicKey, signature, links, postType, channel, timestamp }
   }
@@ -1230,14 +1231,14 @@ class LEAVE_POST {
     let offset = 0
     const buf = b4a.alloc(size)
     // 1. write public key
-    offset += publicKey.copy(buf, 0)
+    offset += b4a.copy(publicKey, buf, 0)
     // 2. make space for signature, which is done last of all.
     offset += constants.SIGNATURE_SIZE
     // 3. write num_links, whose entries each represents a hash i.e. a buffer
     offset += writeVarint(links.length, buf, offset)
     // 4. write the links themselves
     links.forEach(link => {
-      offset += link.copy(buf, offset)
+      offset += b4a.copy(link, buf, offset)
     })
     // 5. write postType
     offset += writeVarint(constants.LEAVE_POST, buf, offset)
@@ -1246,7 +1247,7 @@ class LEAVE_POST {
     // 7. write channelLen
     offset += writeVarint(channelBuf.length, buf, offset)
     // 8. write the channel
-    offset += channelBuf.copy(buf, offset)
+    offset += b4a.copy(channelBuf, buf, offset)
     
     // now, time to make a signature
     crypto.sign(buf, secretKey)
@@ -1259,10 +1260,10 @@ class LEAVE_POST {
     // { publicKey, signature, links, postType, channel, timestamp }
     let offset = 0
     // 1. get publicKey
-    const publicKey = buf.subarray(0, constants.PUBLICKEY_SIZE)
+    const publicKey = buf.slice(0, constants.PUBLICKEY_SIZE)
     offset += constants.PUBLICKEY_SIZE
     // 2. get signature
-    const signature = buf.subarray(offset, offset + constants.SIGNATURE_SIZE)
+    const signature = buf.slice(offset, offset + constants.SIGNATURE_SIZE)
     offset += constants.SIGNATURE_SIZE
     // verify signature is correct
     validation.checkSignature(buf, publicKey)
@@ -1272,7 +1273,7 @@ class LEAVE_POST {
     // 4. use numLinks to slice out the links
     let links = []
     for (let i = 0; i < numLinks; i++) {
-      links.push(buf.subarray(offset, offset + constants.HASH_SIZE))
+      links.push(buf.slice(offset, offset + constants.HASH_SIZE))
       offset += constants.HASH_SIZE
     }
     if (!isArrayHashes(links)) { throw LINKS_EXPECTED }
@@ -1289,10 +1290,10 @@ class LEAVE_POST {
     const channelLen = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
     // 8. use channelLen to get channel
-    const channelBuf = buf.subarray(offset, offset + channelLen)
+    const channelBuf = buf.slice(offset, offset + channelLen)
     offset += channelLen
     validation.checkChannelName(channelBuf)
-    const channel = channelBuf.toString("utf8")
+    const channel = b4a.toString(channelBuf, "utf8")
 
     return { publicKey, signature, links, postType, channel, timestamp }
   }
@@ -1317,7 +1318,7 @@ function peekReqid (buf) {
   // skip circuitid
   offset += constants.CIRCUITID_SIZE
   // read & return reqid
-  return buf.subarray(offset, offset+constants.REQID_SIZE)
+  return buf.slice(offset, offset+constants.REQID_SIZE)
 }
 
 // peek a buffer containing a cable post and return its post type
@@ -1413,10 +1414,10 @@ function insertNewTTL(buf, expectedType) {
     // 4. reqid
     offset += constants.REQID_SIZE
     // get ttl
-    const beforeTTL = buf.subarray(msgLenOffset, offset)
+    const beforeTTL = buf.slice(msgLenOffset, offset)
     const ttl = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    const afterTTL = buf.subarray(offset)
+    const afterTTL = buf.slice(offset)
 
     // decrement ttl
     const newTTL = ttl - 1
@@ -1438,7 +1439,7 @@ function decodeVarintSlice (frame, offset) {
   let sliceEnd 
   for (let i = 1; i < constants.MAX_VARINT_SIZE; i++) {
     sliceEnd = offset + i 
-    const frameSlice = frame.subarray(offset, sliceEnd)
+    const frameSlice = frame.slice(offset, sliceEnd)
     try {
       decodedSlice = varint.decode(frameSlice)
       return decodedSlice
@@ -1456,7 +1457,7 @@ function isInteger(n) {
   return Number.isInteger(n)
 }
 
-function ttlRangecorrect(ttl) {
+function ttlRangeCorrect(ttl) {
   return ttl >= 0 && ttl <= 16
 }
 
@@ -1516,7 +1517,8 @@ function writeVarint (n, buf, offset) {
   // take integer, buffer to write to, and offset to write at
   // return amount of varint encoded bytes written
   const varintBuf = encodeVarintBuffer(n)
-  varintBuf.copy(buf, offset)
+  // varintBuf.copy(buf, offset)
+  b4a.copy(varintBuf, buf, offset)
   return varint.encode.bytes
 }
 
@@ -1558,7 +1560,7 @@ function countPostsBytes (posts) {
 
 function countChannelsBytes(channels) {
   return channels.reduce((acc, c) => {
-    const len = b4a.from(c).length
+    const len = b4a.from(c, "utf8").length
     acc += len + varint.encode(len).length /* varint.encode term accounts for the channelLen varint */
     return acc
   }, 0) // init to 0
