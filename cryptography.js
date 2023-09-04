@@ -40,6 +40,27 @@ function generateKeypair() {
   return kp
 }
 
+// takes the json structure produced by generateKeypair and returns a serialized string representation 
+// where the buffers have been correctly serialized as hex strings
+function serializeKeypair(kp) {
+  const json = { 
+    publicKey: b4a.toString(kp.publicKey, "hex"), 
+    secretKey: b4a.toString(kp.secretKey, "hex"), 
+  }
+  return JSON.stringify(json)
+}
+
+// takes the json string representation returned by serializeKeypair and converts 
+// into the structure produced by generateKeypair()
+function deserializeKeypair(input) {
+  const json = JSON.parse(input)
+  const kp = {
+    publicKey: b4a.from(json.publicKey, "hex"), 
+    secretKey: b4a.from(json.secretKey, "hex"), 
+  }
+  return kp
+}
+
 // buf is a buffer that is exactly as large as the message (i.e. no overshooting placeholder bytes after message
 // payload)
 function sign (buf, secretKey) {
@@ -77,6 +98,8 @@ function hash(buf) {
 module.exports = {
   generateReqID,
   generateKeypair,
+  serializeKeypair,
+  deserializeKeypair,
   hash,
   sign,
   verify
