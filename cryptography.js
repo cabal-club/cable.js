@@ -40,6 +40,12 @@ function generateKeypair() {
   return kp
 }
 
+function randomBytes (len) {
+  const buf = b4a.alloc(len)
+  sodium.randombytes_buf(buf)
+  return buf
+}
+
 // takes the json structure produced by generateKeypair and returns a serialized string representation 
 // where the buffers have been correctly serialized as hex strings
 function serializeKeypair(kp) {
@@ -100,6 +106,7 @@ module.exports = {
   generateKeypair,
   serializeKeypair,
   deserializeKeypair,
+  randomBytes,
   hash,
   sign,
   verify
