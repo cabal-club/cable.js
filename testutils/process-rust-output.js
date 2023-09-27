@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2023 the cabal-club authors
+//
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 const fs = require("fs")
 
 fs.readFile("./rust-output.txt", (err, data) => {
