@@ -153,8 +153,8 @@ cable is capable of generating.
   }
 }
 {
-  "name": "hash response",
-  "type": "response",
+  "name": "post request",
+  "type": "request",
   "id": 2,
   "binary": "6b020000000095050429010320265674e8aac2dfddd78f86fe5a3dd68d976ca3f5ba23645ec7381480921d0d10705340e5528f2ef03a6797b72b1bb9f37f9009ad408247387c4bcc4d2a3371af700793dd51d4cb3c18a6df46f88bfe1665fba9b277487ddecd1e031441d69d",
   "obj": {

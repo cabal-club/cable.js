@@ -153,7 +153,7 @@ print({name: "initial-parameters", type: "generated-data", id: -1, binary: null,
 // 2: post request
 const bufPostReq = POST_REQUEST.create(reqid, ttl, hashes)
 const objPostReq = POST_REQUEST.toJSON(bufPostReq)
-print({ name: "hash response", type: "response", id: cable.peekMessage(bufPostReq), binary: bufPostReq, obj: objPostReq })
+print({ name: "post request", type: "request", id: cable.peekMessage(bufPostReq), binary: bufPostReq, obj: objPostReq })
 
 // 3: cancel request
 const b = CANCEL_REQUEST.create(reqid, ttl, cancelid)
