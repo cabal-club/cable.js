@@ -125,6 +125,8 @@ function traverseArray (coll) {
 
 function print(obj) {
   const result = {}
+  const posthash = obj.binary ? b4a.toString(crypto.hash(obj.binary), "hex") : null
+  obj.posthash = posthash
   traverse(obj, result)
   console.log(JSON.stringify(result))
 }
