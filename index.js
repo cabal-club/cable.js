@@ -18,6 +18,9 @@ const EMPTY_CIRCUIT_ID = b4a.alloc(4, 0)
 // TODO (2023-04-18): introduce specific error classes to be able to distinguish between e.g. missing # of parameters (fatal impl error) and lengths of strings (user behaviour, recoverable)
 
 const LINKS_EXPECTED = new Error("expected links to contain an array of hash-sized buffers")
+const ARRAY_POSTS_EXPECTED = new Error("expected recipients to contain an array of hash-sized buffers")
+const ARRAY_KEYS_EXPECTED = new Error("expected recipients to contain an array of publicKey-sized buffers")
+const EMPTY_RECIPIENTS_EXPECTED = new Error("expected recipients to be length zero")
 const HASHES_EXPECTED = new Error("expected hashes to contain an array of hash-sized buffers")
 const STRINGS_EXPECTED = new Error("expected channels to contain an array of strings")
 function bufferExpected (param, size) {
@@ -31,6 +34,9 @@ function integerExpected (param) {
 }
 function stringExpected (param) {
   return new Error(`expected ${param} to be a string`)
+}
+function emptyExpected (param) {
+  return new Error(`expected ${param} to be the empty string`)
 }
 function ttlRangeExpected (param) {
   return new Error(`expected ttl to be between 0 and 16, was ${param}`)
@@ -673,6 +679,105 @@ class CHANNEL_LIST_RESPONSE {
   }
 }
 
+class MODERATION_STATE_REQUEST {
+  static create(reqid, channels, future, oldest) {
+    if (arguments.length !== 4) { throw wrongNumberArguments(4, arguments.length, "create(reqid, channels, future, oldest)") }
+    if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
+    if (!isArrayString(channels)) { throw STRINGS_EXPECTED }
+    if (!isInteger(future)) { throw integerExpected("future") }
+    if (!isInteger(oldest)) { throw integerExpected("oldest") }
+
+    const size = determineBufferSize([
+      {v: constants.MODERATION_STATE_REQUEST},
+      {b: constants.CIRCUITID_SIZE},
+      {b: constants.REQID_SIZE},
+      {b: countChannelsBytes(channels)},
+      {v: 0}, // concluding channelLen = 0
+      {v: future},
+      {v: oldest}
+    ])
+
+    // allocate exactly-sized buffer
+    const frame = b4a.alloc(size)
+    let offset = 0
+    // 1. write message type
+    offset += writeVarint(constants.MODERATION_STATE_REQUEST, frame, offset)
+    // 2. write circuitid (unused spec rev 2023-04)
+    offset += b4a.copy(EMPTY_CIRCUIT_ID, frame, offset)
+    // 3. write reqid
+    offset += b4a.copy(reqid, frame, offset)
+    // 4. write channels
+    channels.forEach(channel => {
+      // convert to buf: yields correct length wrt utf-8 bytes + used when copying
+      const channelBuf = b4a.from(channel, "utf8")
+      validation.checkChannelName(channelBuf)
+      // 4.1 write channelLen
+      offset += writeVarint(channelBuf.length, frame, offset)
+      // 4.2 write channel
+      offset += b4a.copy(channelBuf, frame, offset)
+    })
+    // 4.3 finally: write a channelLen = 0 to signal end of channel data
+    offset += writeVarint(0, frame, offset)
+    // 5. write future varint
+    offset += writeVarint(future, frame, offset)
+    // 6. write oldest varint
+    offset += writeVarint(oldest, frame, offset)
+
+    return prependMsgLen(frame)
+  }
+
+  // takes a message buffer and returns the json object: 
+  // { msgLen, msgType, reqid, channels, future, oldest }
+  static toJSON(buf) {
+    let offset = 0
+    let msgLenBytes 
+    // 0. get msgLen
+    const msgLen = decodeVarintSlice(buf, 0)
+    offset += varint.decode.bytes
+    msgLenBytes = varint.decode.bytes
+    if (!isBufferSize(buf.slice(offset), msgLen)) { throw bufferExpected("remaining buf", msgLen) }
+    // 1. get msgType
+    const msgType = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    if (msgType !== constants.MODERATION_STATE_REQUEST) {
+      return new Error(`"decoded msgType (${msgType}) is not of expected type (constants.MODERATION_STATE_REQUEST)`)
+    }
+    // 2. skip circuit (unused spec rev 2023-04)
+    offset += constants.CIRCUITID_SIZE
+    // 3. get reqid
+    const reqid = buf.slice(offset, offset+constants.REQID_SIZE)
+    offset += constants.REQID_SIZE
+    if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
+    // 4. get channels
+    const channels = []
+    // msgLen tells us the number of bytes in the remaining message i.e. *excluding* msgLen, 
+    // so we need to account for that by adding msgLenBytes
+    let remaining = msgLen - offset + msgLenBytes
+    while (remaining > 0) {
+    // 4.1 get channel size
+      const channelLen = decodeVarintSlice(buf, offset)
+      offset += varint.decode.bytes
+      // 4.3 if channelLen === 0 then we have no more channels in this response
+      if (channelLen === 0) { break }
+      // 4.2. use channelLen to slice out the channel
+      const channelBuf = buf.slice(offset, offset + channelLen)
+      offset += channelLen
+      validation.checkChannelName(channelBuf)
+      const channel = b4a.toString(channelBuf, "utf8")
+      channels.push(channel)
+      remaining = msgLen - offset + msgLenBytes
+    }
+    // 5. get future
+    const future = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 6. get oldest
+    const oldest = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+
+    return { msgLen, msgType, reqid, channels, future, oldest }
+  }
+}
+
 class TEXT_POST {
   static create(publicKey, secretKey, links, channel, timestamp, text) {
     if (arguments.length !== 6) { throw wrongNumberArguments(6, arguments.length, "create(publicKey, secretKey, links, channel, timestamp, text)") }
@@ -1299,6 +1404,575 @@ class LEAVE_POST {
   }
 }
 
+class ROLE_POST {
+  static create(publicKey, secretKey, links, channel, timestamp, recipient, role, reason, privacy) {
+    if (arguments.length !== 9) { throw wrongNumberArguments(9, arguments.length, "create(publicKey, secretKey, links, channel, timestamp, recipient, role, reason, privacy)") }
+    if (!isBufferSize(publicKey, constants.PUBLICKEY_SIZE)) { throw bufferExpected("publicKey", constants.PUBLICKEY_SIZE) }
+    if (!isBufferSize(secretKey, constants.SECRETKEY_SIZE)) { throw bufferExpected("secretKey", constants.SECRETKEY_SIZE) }
+    if (!isBufferSize(recipient, constants.PUBLICKEY_SIZE)) { throw bufferExpected("recipient", constants.PUBLICKEY_SIZE) }
+    if (!isArrayHashes(links)) { throw LINKS_EXPECTED }
+    if (!isInteger(timestamp)) { throw integerExpected("timestamp") }
+    if (!isInteger(role)) { throw integerExpected("role") }
+    if (!isInteger(privacy)) { throw integerExpected("privacy") }
+    if (!isString(channel)) { throw stringExpected("channel") }
+    if (!isString(reason)) { throw stringExpected("reason") }
+
+    // convert to buf: yields correct length wrt utf-8 bytes + used when copying
+    const channelBuf = b4a.from(channel, "utf8")
+    validation.checkChannelName(channelBuf)
+    const reasonBuf = b4a.from(reason, "utf8")
+    validation.checkReason(reasonBuf)
+    
+    const size = determineBufferSize([
+      {b: constants.PUBLICKEY_SIZE},
+      {b: constants.SIGNATURE_SIZE},
+      {h: links.length},
+      {v: constants.ROLE_POST},
+      {v: timestamp},
+      {s: reasonBuf.length},
+      {v: privacy},
+      {s: channelBuf.length},
+      {b: constants.PUBLICKEY_SIZE}, // recipient
+      {v: role}
+    ]) 
+
+    let offset = 0
+    const buf = b4a.alloc(size)
+    // 1. write public key
+    offset += b4a.copy(publicKey, buf, 0)
+    // 2. make space for signature, which is done last of all.
+    offset += constants.SIGNATURE_SIZE
+    // 3. write num_links, whose entries each represents a hash i.e. a buffer
+    offset += writeVarint(links.length, buf, offset)
+    // 4. write the links themselves
+    links.forEach(link => {
+      offset += b4a.copy(link, buf, offset)
+    })
+    // 5. write postType
+    offset += writeVarint(constants.ROLE_POST, buf, offset)
+    // 6. write timestamp
+    offset += writeVarint(timestamp, buf, offset)
+    // 7. write reasonLen
+    offset += writeVarint(reasonBuf.length, buf, offset)
+    // 8. write the reason
+    offset += b4a.copy(reasonBuf, buf, offset)
+    // 9. write privacy
+    offset += writeVarint(privacy, buf, offset)
+    // 10. write channelLen
+    offset += writeVarint(channelBuf.length, buf, offset)
+    // 11. write the channel
+    offset += b4a.copy(channelBuf, buf, offset)
+    // 12. write recipient key
+    offset += b4a.copy(recipient, buf, offset)
+    
+    // now, time to make a signature
+    crypto.sign(buf, secretKey)
+    validation.checkSignature(buf, publicKey)
+
+    return buf
+  }
+
+  static toJSON(buf) {
+    // {publicKey, secretKey, links, timestamp, reason, privacy, channel, recipient, role }
+    let offset = 0
+    // 1. get publicKey
+    const publicKey = buf.slice(0, constants.PUBLICKEY_SIZE)
+    offset += constants.PUBLICKEY_SIZE
+    // 2. get signature
+    const signature = buf.slice(offset, offset + constants.SIGNATURE_SIZE)
+    offset += constants.SIGNATURE_SIZE
+    // verify signature is correct
+    validation.checkSignature(buf, publicKey)
+    // 3. get numLinks
+    const numLinks = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 4. use numLinks to slice out the links
+    let links = []
+    for (let i = 0; i < numLinks; i++) {
+      links.push(buf.slice(offset, offset + constants.HASH_SIZE))
+      offset += constants.HASH_SIZE
+    }
+    if (!isArrayHashes(links)) { throw LINKS_EXPECTED }
+    // 5. get postType
+    const postType = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    if (postType !== constants.ROLE_POST) {
+      return new Error(`decoded postType (${postType}) is not of expected type (constants.ROLE_POST)`)
+    }
+    // 6. get timestamp
+    const timestamp = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 7. get reasonLen
+    const reasonLen = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 8. use reasonLen to get reason
+    const reasonBuf = buf.slice(offset, offset + reasonLen)
+    offset += reasonLen
+    validation.checkReason(reasonBuf)
+    const reason = b4a.toString(reasonBuf, "utf8")
+    // 9. get privacy varint
+    const privacy = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 10. get channelLen
+    const channelLen = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 11. use channelLen to get channel
+    const channelBuf = buf.slice(offset, offset + channelLen)
+    offset += channelLen
+    validation.checkChannelName(channelBuf)
+    const channel = b4a.toString(channelBuf, "utf8")
+    // 12. get recipient
+    const recipient = buf.slice(offset, constants.PUBLICKEY_SIZE)
+    offset += constants.PUBLICKEY_SIZE
+
+    return { publicKey, secretKey, links, timestamp, reason, privacy, channel, recipient, role }
+  }
+}
+
+class MODERATION_POST {
+  static create(publicKey, secretKey, links, channel, timestamp, recipients, action, reason, privacy) {
+    if (arguments.length !== 9) { throw wrongNumberArguments(9, arguments.length, "create(publicKey, secretKey, links, channels, timestamp, recipients, action, reason, privacy)") }
+    if (!isBufferSize(publicKey, constants.PUBLICKEY_SIZE)) { throw bufferExpected("publicKey", constants.PUBLICKEY_SIZE) }
+    if (!isBufferSize(secretKey, constants.SECRETKEY_SIZE)) { throw bufferExpected("secretKey", constants.SECRETKEY_SIZE) }
+    if (!isArrayHashes(links)) { throw LINKS_EXPECTED }
+    if (!isInteger(action)) { throw integerExpected("action") }
+    switch (action) {
+      case constants.ACTION_HIDE_POST:
+      case constants.ACTION_UNHIDE_POST:
+      case constants.ACTION_DROP_POST:
+      case constants.ACTION_UNDROP_POST:
+        if (!isArrayHashes(recipients)) { throw ARRAY_POSTS_EXPECTED }
+        if (!isString(channel)) { throw stringExpected("channel") }
+        break
+      case constants.ACTION_HIDE_USER:
+      case constants.ACTION_UNHIDE_USER:
+        if (!isArrayPublicKeys(recipients)) { throw ARRAY_KEYS_EXPECTED }
+        if (!isString(channel)) { throw stringExpected("channel") }
+        break
+      case constants.ACTION_DROP_CHANNEL:
+      case constants.ACTION_UNDROP_CHANNEL:
+        if (recipients.length > 0) { throw EMPTY_RECIPIENTS_EXPECTED }
+        break
+    }
+    if (!isInteger(timestamp)) { throw integerExpected("timestamp") }
+    if (!isString(reason)) { throw stringExpected("reason") }
+    if (!isInteger(privacy)) { throw integerExpected("privacy") }
+
+    // convert to buf: yields correct length wrt utf-8 bytes + used when copying
+    const channelBuf = b4a.from(channel, "utf8")
+    validation.checkChannelName(channelBuf)
+    const reasonBuf = b4a.from(reason, "utf8")
+    validation.checkReason(reasonBuf)
+
+    validation.checkRecipientsLength(recipients)
+    
+    const size = determineBufferSize([
+      {b: constants.PUBLICKEY_SIZE},
+      {b: constants.SIGNATURE_SIZE},
+      {h: links.length},
+      {v: constants.MODERATION_POST},
+      {v: timestamp},
+      {s: reasonBuf.length},
+      {v: privacy},
+      {s: channelBuf.length},
+      {h: recipients.length}, // recipients; bit of a hack as public_key + hash size are same # bytes
+      {v: action}
+    ]) 
+
+    let offset = 0
+    const buf = b4a.alloc(size)
+    // 1. write public key
+    offset += b4a.copy(publicKey, buf, 0)
+    // 2. make space for signature, which is done last of all.
+    offset += constants.SIGNATURE_SIZE
+    // 3. write num_links, whose entries each represents a hash i.e. a buffer
+    offset += writeVarint(links.length, buf, offset)
+    // 4. write the links themselves
+    links.forEach(link => {
+      offset += b4a.copy(link, buf, offset)
+    })
+    // 5. write postType
+    offset += writeVarint(constants.ROLE_POST, buf, offset)
+    // 6. write timestamp
+    offset += writeVarint(timestamp, buf, offset)
+    // 7. write reasonLen
+    offset += writeVarint(reasonBuf.length, buf, offset)
+    // 8. write the reason
+    offset += b4a.copy(reasonBuf, buf, offset)
+    // 9. write privacy
+    offset += writeVarint(privacy, buf, offset)
+    // 10. write channelLen
+    offset += writeVarint(channelBuf.length, buf, offset)
+    // 11. write the channel
+    offset += b4a.copy(channelBuf, buf, offset)
+    // 12. write recipient_count, whose entries each represent either a hash or a public key (both represented by bufs)
+    offset += writeVarint(recipients.length, buf, offset)
+    // 13. write the recipients themselves
+    recipients.forEach(recipient => {
+      offset += b4a.copy(recipient, buf, offset)
+    })
+    // 14. write action
+    offset += writeVarint(action, buf, offset)
+    
+    // now, time to make a signature
+    crypto.sign(buf, secretKey)
+    validation.checkSignature(buf, publicKey)
+
+    return buf
+  }
+
+  static toJSON(buf) {
+    // {publicKey, secretKey, links, channel, timestamp, recipients, action, reason, privacy}
+    let offset = 0
+    // 1. get publicKey
+    const publicKey = buf.slice(0, constants.PUBLICKEY_SIZE)
+    offset += constants.PUBLICKEY_SIZE
+    // 2. get signature
+    const signature = buf.slice(offset, offset + constants.SIGNATURE_SIZE)
+    offset += constants.SIGNATURE_SIZE
+    // verify signature is correct
+    validation.checkSignature(buf, publicKey)
+    // 3. get numLinks
+    const numLinks = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 4. use numLinks to slice out the links
+    let links = []
+    for (let i = 0; i < numLinks; i++) {
+      links.push(buf.slice(offset, offset + constants.HASH_SIZE))
+      offset += constants.HASH_SIZE
+    }
+    if (!isArrayHashes(links)) { throw LINKS_EXPECTED }
+    // 5. get postType
+    const postType = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    if (postType !== constants.ROLE_POST) {
+      return new Error(`decoded postType (${postType}) is not of expected type (constants.ROLE_POST)`)
+    }
+    // 6. get timestamp
+    const timestamp = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 7. get reasonLen
+    const reasonLen = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 8. use reasonLen to get reason
+    const reasonBuf = buf.slice(offset, offset + reasonLen)
+    offset += reasonLen
+    validation.checkReason(reasonBuf)
+    const reason = b4a.toString(reasonBuf, "utf8")
+    // 9. get privacy varint
+    const privacy = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 10. get channelLen
+    const channelLen = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 11. use channelLen to get channel
+    const channelBuf = buf.slice(offset, offset + channelLen)
+    offset += channelLen
+    validation.checkChannelName(channelBuf)
+    const channel = b4a.toString(channelBuf, "utf8")
+    // 12. get numLinks
+    const recipientCount = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 13. use recipientCount to slice out the recipients
+    let recipients = []
+    for (let i = 0; i < recipientCount; i++) {
+      recipients.push(buf.slice(offset, offset + constants.HASH_SIZE)) // hack: making use current spec and that publicKeys and hashes have same # bytes ':)
+      offset += constants.HASH_SIZE
+    }
+    validation.checkRecipientsLength(recipients)
+
+    // 14. get action varint
+    const action = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+
+    // confirm recipients contents
+    switch (action) {
+      case constants.ACTION_HIDE_POST:
+      case constants.ACTION_UNHIDE_POST:
+      case constants.ACTION_DROP_POST:
+      case constants.ACTION_UNDROP_POST:
+        if (!isArrayHashes(recipients)) { throw ARRAY_POSTS_EXPECTED }
+        break
+      case constants.ACTION_HIDE_USER:
+      case constants.ACTION_UNHIDE_USER:
+        if (!isArrayPublicKeys(recipients)) { throw ARRAY_KEYS_EXPECTED }
+        break
+      case constants.ACTION_DROP_CHANNEL:
+      case constants.ACTION_UNDROP_CHANNEL:
+        if (recipients.length > 0) { throw EMPTY_RECIPIENTS_EXPECTED }
+        break
+    }
+
+    return { publicKey, secretKey, links, timestamp, reason, privacy, channel, recipients, action }
+  }
+}
+
+class BLOCK_POST {
+  static create(publicKey, secretKey, links, timestamp, recipients, drop, notify, reason, privacy) {
+    if (arguments.length !== 9) { throw wrongNumberArguments(9, arguments.length, "create(publicKey, secretKey, links, timestamp, recipient, drop, notify, reason, privacy)") }
+    if (!isBufferSize(publicKey, constants.PUBLICKEY_SIZE)) { throw bufferExpected("publicKey", constants.PUBLICKEY_SIZE) }
+    if (!isBufferSize(secretKey, constants.SECRETKEY_SIZE)) { throw bufferExpected("secretKey", constants.SECRETKEY_SIZE) }
+    if (!isArrayHashes(links)) { throw LINKS_EXPECTED }
+    if (!isArrayPublicKeys(recipients)) { throw ARRAY_KEYS_EXPECTED }
+    if (!isInteger(timestamp)) { throw integerExpected("timestamp") }
+    if (!isInteger(notify)) { throw integerExpected("notify") }
+    if (!isInteger(drop)) { throw integerExpected("drop") }
+    if (!isInteger(privacy)) { throw integerExpected("privacy") }
+    if (!isString(reason)) { throw stringExpected("reason") }
+
+    // convert to buf: yields correct length wrt utf-8 bytes + used when copying
+    const reasonBuf = b4a.from(reason, "utf8")
+    validation.checkReason(reasonBuf)
+
+    validation.checkRecipientsLength(recipients)
+    
+    const size = determineBufferSize([
+      {b: constants.PUBLICKEY_SIZE},
+      {b: constants.SIGNATURE_SIZE},
+      {h: links.length},
+      {v: constants.BLOCK_POST},
+      {v: timestamp},
+      {s: reasonBuf.length},
+      {v: privacy},
+      {h: recipients.length}, // recipients; bit of a hack as public_key + hash size are same # bytes
+      {v: drop},
+      {v: notify}
+    ]) 
+
+    let offset = 0
+    const buf = b4a.alloc(size)
+    // 1. write public key
+    offset += b4a.copy(publicKey, buf, 0)
+    // 2. make space for signature, which is done last of all.
+    offset += constants.SIGNATURE_SIZE
+    // 3. write num_links, whose entries each represents a hash i.e. a buffer
+    offset += writeVarint(links.length, buf, offset)
+    // 4. write the links themselves
+    links.forEach(link => {
+      offset += b4a.copy(link, buf, offset)
+    })
+    // 5. write postType
+    offset += writeVarint(constants.BLOCK_POST, buf, offset)
+    // 6. write timestamp
+    offset += writeVarint(timestamp, buf, offset)
+    // 7. write reasonLen
+    offset += writeVarint(reasonBuf.length, buf, offset)
+    // 8. write the reason
+    offset += b4a.copy(reasonBuf, buf, offset)
+    // 9. write privacy
+    offset += writeVarint(privacy, buf, offset)
+    // 10. write recipient_count, whose entries are represented by a public key
+    offset += writeVarint(recipients.length, buf, offset)
+    // 11. write the recipients themselves
+    recipients.forEach(recipient => {
+      offset += b4a.copy(recipient, buf, offset)
+    })
+    // 12. write drop
+    offset += writeVarint(drop, buf, offset)
+    // 13. write notify
+    offset += writeVarint(notify, buf, offset)
+    
+    // now, time to make a signature
+    crypto.sign(buf, secretKey)
+    validation.checkSignature(buf, publicKey)
+
+    return buf
+  }
+
+  /* 2024-02-13: CONTINUE CONVERTING FROM HERE */
+  static toJSON(buf) {
+    // {publicKey, secretKey, links, timestamp, recipient, drop, notify, reason, privacy}
+    let offset = 0
+    // 1. get publicKey
+    const publicKey = buf.slice(0, constants.PUBLICKEY_SIZE)
+    offset += constants.PUBLICKEY_SIZE
+    // 2. get signature
+    const signature = buf.slice(offset, offset + constants.SIGNATURE_SIZE)
+    offset += constants.SIGNATURE_SIZE
+    // verify signature is correct
+    validation.checkSignature(buf, publicKey)
+    // 3. get numLinks
+    const numLinks = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 4. use numLinks to slice out the links
+    let links = []
+    for (let i = 0; i < numLinks; i++) {
+      links.push(buf.slice(offset, offset + constants.HASH_SIZE))
+      offset += constants.HASH_SIZE
+    }
+    if (!isArrayHashes(links)) { throw LINKS_EXPECTED }
+    // 5. get postType
+    const postType = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    if (postType !== constants.BLOCK_POST) {
+      return new Error(`decoded postType (${postType}) is not of expected type (constants.BLOCK_POST)`)
+    }
+    // 6. get timestamp
+    const timestamp = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 7. get reasonLen
+    const reasonLen = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 8. use reasonLen to get reason
+    const reasonBuf = buf.slice(offset, offset + reasonLen)
+    offset += reasonLen
+    validation.checkReason(reasonBuf)
+    const reason = b4a.toString(reasonBuf, "utf8")
+    // 9. get privacy varint
+    const privacy = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 10. get recipient_count
+    const recipientCount = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 11. use recipientCount to slice out the recipients
+    let recipients = []
+    for (let i = 0; i < recipientCount; i++) {
+      recipients.push(buf.slice(offset, offset + constants.PUBLICKEY_SIZE))
+      offset += constants.PUBLICKEY_SIZE
+    }
+    if (!isArrayPublicKeys(recipients)) { throw ARRAY_KEYS_EXPECTED }
+    validation.checkRecipientsLength(recipients)
+    // 12. get drop varint
+    const drop = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 13. get notify varint
+    const notify = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+
+    return { publicKey, secretKey, links, timestamp, reason, privacy, recipients, drop, notify }
+  }
+}
+
+class UNBLOCK_POST {
+  static create(publicKey, secretKey, links, timestamp, recipients, undrop, reason, privacy) {
+    if (arguments.length !== 9) { throw wrongNumberArguments(9, arguments.length, "create(publicKey, secretKey, links, timestamp, recipient, undrop, reason, privacy)") }
+    if (!isBufferSize(publicKey, constants.PUBLICKEY_SIZE)) { throw bufferExpected("publicKey", constants.PUBLICKEY_SIZE) }
+    if (!isBufferSize(secretKey, constants.SECRETKEY_SIZE)) { throw bufferExpected("secretKey", constants.SECRETKEY_SIZE) }
+    if (!isArrayHashes(links)) { throw LINKS_EXPECTED }
+    if (!isArrayPublicKeys(recipients)) { throw ARRAY_KEYS_EXPECTED }
+    if (!isInteger(timestamp)) { throw integerExpected("timestamp") }
+    if (!isInteger(notify)) { throw integerExpected("notify") }
+    if (!isInteger(undrop)) { throw integerExpected("undrop") }
+    if (!isInteger(privacy)) { throw integerExpected("privacy") }
+    if (!isString(reason)) { throw stringExpected("reason") }
+
+    // convert to buf: yields correct length wrt utf-8 bytes + used when copying
+    const reasonBuf = b4a.from(reason, "utf8")
+    validation.checkReason(reasonBuf)
+
+    validation.checkRecipientsLength(recipients)
+    
+    const size = determineBufferSize([
+      {b: constants.PUBLICKEY_SIZE},
+      {b: constants.SIGNATURE_SIZE},
+      {h: links.length},
+      {v: constants.UNBLOCK_POST},
+      {v: timestamp},
+      {s: reasonBuf.length},
+      {v: privacy},
+      {h: recipients.length}, // recipients; bit of a hack as public_key + hash size are same # bytes
+      {v: undrop}
+    ]) 
+
+    let offset = 0
+    const buf = b4a.alloc(size)
+    // 1. write public key
+    offset += b4a.copy(publicKey, buf, 0)
+    // 2. make space for signature, which is done last of all.
+    offset += constants.SIGNATURE_SIZE
+    // 3. write num_links, whose entries each represents a hash i.e. a buffer
+    offset += writeVarint(links.length, buf, offset)
+    // 4. write the links themselves
+    links.forEach(link => {
+      offset += b4a.copy(link, buf, offset)
+    })
+    // 5. write postType
+    offset += writeVarint(constants.UNBLOCK_POST, buf, offset)
+    // 6. write timestamp
+    offset += writeVarint(timestamp, buf, offset)
+    // 7. write reasonLen
+    offset += writeVarint(reasonBuf.length, buf, offset)
+    // 8. write the reason
+    offset += b4a.copy(reasonBuf, buf, offset)
+    // 9. write privacy
+    offset += writeVarint(privacy, buf, offset)
+    // 10. write recipient_count, whose entries are represented by a public key
+    offset += writeVarint(recipients.length, buf, offset)
+    // 11. write the recipients themselves
+    recipients.forEach(recipient => {
+      offset += b4a.copy(recipient, buf, offset)
+    })
+    // 12. write undrop
+    offset += writeVarint(undrop, buf, offset)
+    
+    // now, time to make a signature
+    crypto.sign(buf, secretKey)
+    validation.checkSignature(buf, publicKey)
+
+    return buf
+  }
+
+  /* 2024-02-13: CONTINUE CONVERTING FROM HERE */
+  static toJSON(buf) {
+    // {publicKey, secretKey, links, timestamp, recipient, undrop, notify, reason, privacy}
+    let offset = 0
+    // 1. get publicKey
+    const publicKey = buf.slice(0, constants.PUBLICKEY_SIZE)
+    offset += constants.PUBLICKEY_SIZE
+    // 2. get signature
+    const signature = buf.slice(offset, offset + constants.SIGNATURE_SIZE)
+    offset += constants.SIGNATURE_SIZE
+    // verify signature is correct
+    validation.checkSignature(buf, publicKey)
+    // 3. get numLinks
+    const numLinks = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 4. use numLinks to slice out the links
+    let links = []
+    for (let i = 0; i < numLinks; i++) {
+      links.push(buf.slice(offset, offset + constants.HASH_SIZE))
+      offset += constants.HASH_SIZE
+    }
+    if (!isArrayHashes(links)) { throw LINKS_EXPECTED }
+    // 5. get postType
+    const postType = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    if (postType !== constants.UNBLOCK_POST) {
+      return new Error(`decoded postType (${postType}) is not of expected type (constants.UNBLOCK_POST)`)
+    }
+    // 6. get timestamp
+    const timestamp = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 7. get reasonLen
+    const reasonLen = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 8. use reasonLen to get reason
+    const reasonBuf = buf.slice(offset, offset + reasonLen)
+    offset += reasonLen
+    validation.checkReason(reasonBuf)
+    const reason = b4a.toString(reasonBuf, "utf8")
+    // 9. get privacy varint
+    const privacy = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 10. get recipient_count
+    const recipientCount = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    // 11. use recipientCount to slice out the recipients
+    let recipients = []
+    for (let i = 0; i < recipientCount; i++) {
+      recipients.push(buf.slice(offset, offset + constants.PUBLICKEY_SIZE))
+      offset += constants.PUBLICKEY_SIZE
+    }
+    if (!isArrayPublicKeys(recipients)) { throw ARRAY_KEYS_EXPECTED }
+    validation.checkRecipientsLength(recipients)
+    // 12. get undrop varint
+    const undrop = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+
+    return { publicKey, secretKey, links, timestamp, reason, privacy, recipients, undrop }
+  }
+}
+
 // peek returns the buf type of a message
 function peekMessage (buf) {
   // decode msg len, and discard
@@ -1500,6 +2174,18 @@ function isArrayHashes (arr) {
   if (Array.isArray(arr)) {
     for (let i = 0; i < arr.length; i++) {
       if (!isBufferSize(arr[i], constants.HASH_SIZE)) {
+        return false
+      }
+    }
+    return true
+  }
+  return false
+}
+
+function isArrayPublicKeys (arr) {
+  if (Array.isArray(arr)) {
+    for (let i = 0; i < arr.length; i++) {
+      if (!isBufferSize(arr[i], constants.PUBLICKEY_SIZE)) {
         return false
       }
     }

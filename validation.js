@@ -29,6 +29,11 @@ function checkChannelName (channelBuf) {
   if (!correctlySized) { throw codepointRangeExpected("channel", constants.TOPIC_MIN_CODEPOINTS, constants.TOPIC_MAX_CODEPOINTS, channelBuf.length) }
 }
 
+function checkReason (reasonBuf) {
+  const correctlySized = isBufferSizeMin(channelBuf, constants.REASON_MIN_CODEPOINTS) && isBufferSizeMax(channelBuf, constants.REASON_MAX_CODEPOINTS)
+  if (!correctlySized) { throw codepointRangeExpected("channel", constants.TOPIC_MIN_CODEPOINTS, constants.TOPIC_MAX_CODEPOINTS, channelBuf.length) }
+}
+
 function checkTopic(topicBuf) {
   const correctlySized = isBufferSizeMin(topicBuf, constants.TOPIC_MIN_CODEPOINTS) && isBufferSizeMax(topicBuf, constants.TOPIC_MAX_CODEPOINTS)
   if (!correctlySized) { throw codepointRangeExpected("topic", constants.TOPIC_MIN_CODEPOINTS, constants.TOPIC_MAX_CODEPOINTS, topicBuf.length) }
@@ -54,6 +59,15 @@ function checkPostText(textBuf) {
   if (!correctlySized) { throw new bufferExpectedMax("text", constants.POST_TEXT_MAX_BYTES, textBuf.len) }
 }
 
+function checkRecipientsLength (recipients) {
+    if (recipients.length > constants.RECIPIENT_COUNT_MAX) {
+      throw new Error("recipients length exceeded max of 16")
+    }
+    if (recipients.length < constants.RECIPIENT_COUNT_MIN) {
+      throw new Error("recipients length below min of 1")
+    }
+}
+
 function checkSignature (message, publicKey) {
   const signatureCorrect = crypto.verify(message, publicKey)
   if (!signatureCorrect) { 
@@ -68,5 +82,7 @@ module.exports = {
   checkInfoValue,
   checkUsername,
   checkTopic,
-  checkChannelName
+  checkChannelName,
+  checkReason,
+  checkRecipientsLength 
 }
