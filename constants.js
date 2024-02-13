@@ -44,6 +44,8 @@ const TIME_RANGE_REQUEST = 4
 const CHANNEL_STATE_REQUEST = 5
 // 6. request channel list
 const CHANNEL_LIST_REQUEST = 6
+// 7. moderation state request
+const MODERATION_STATE_REQUEST = 7
 
 /* TYPE_POST FIELD VALUES */
 const TEXT_POST = 0
@@ -52,6 +54,26 @@ const INFO_POST = 2
 const TOPIC_POST = 3
 const JOIN_POST = 4
 const LEAVE_POST = 5
+const ROLE_POST = 6 // post/role
+const MODERATION_POST = 7
+const BLOCK_POST = 8
+const UNBLOCK_POST = 9
+
+/* POST/MODERATION ACTION TYPES */
+const ACTION_HIDE_USER       = 0
+const ACTION_UNHIDE_USER     = 1
+const ACTION_HIDE_POST       = 2
+const ACTION_UNHIDE_POST     = 3
+const ACTION_DROP_POST       = 4
+const ACTION_UNDROP_POST     = 5
+const ACTION_DROP_CHANNEL    = 6
+const ACTION_UNDROP_CHANNEL  = 7
+
+const USER_FLAG = 2
+const MOD_FLAG = 1
+const ADMIN_FLAG = 0
+
+const CABAL_CONTEXT = `\u0000` // non-specified constant signifying "post context was entire cabal"
 
 const MAX_VARINT_SIZE = 10 // according to cryptix in svendborg :)
 
@@ -78,6 +100,12 @@ const INFO_VALUE_MAX_BYTES = 4096
 const TOPIC_MIN_CODEPOINTS = 0
 const TOPIC_MAX_CODEPOINTS = 512
 
+const REASON_MIN_CODEPOINTS = 0
+const REASON_MAX_CODEPOINTS = 128
+
+const RECIPIENT_COUNT_MIN = 1
+const RECIPIENT_COUNT_MAX = 16
+
 module.exports = {
   HASH_RESPONSE,
   POST_RESPONSE,
@@ -88,6 +116,7 @@ module.exports = {
   TIME_RANGE_REQUEST,
   CHANNEL_STATE_REQUEST,
   CHANNEL_LIST_REQUEST,
+  MODERATION_STATE_REQUEST,
 
   TEXT_POST,
   DELETE_POST,
@@ -95,6 +124,19 @@ module.exports = {
   TOPIC_POST,
   JOIN_POST,
   LEAVE_POST,
+  ROLE_POST,
+  MODERATION_POST,
+  BLOCK_POST,
+  UNBLOCK_POST,
+
+  ACTION_HIDE_USER,
+  ACTION_UNHIDE_USER,
+  ACTION_HIDE_POST,
+  ACTION_UNHIDE_POST,
+  ACTION_DROP_POST,
+  ACTION_UNDROP_POST,
+  ACTION_DROP_CHANNEL,
+  ACTION_UNDROP_CHANNEL,
 
   MAX_VARINT_SIZE,
   REQID_SIZE,
