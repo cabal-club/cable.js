@@ -353,14 +353,14 @@ test("1: post/delete", t => {
   t.end()
 })
 
-test("2: post/info", t => {
+test("2: post/info (set key=name only)", t => {
   const keypair = crypto.generateKeypair()
   const links = generateFakeHashes(1)
   const timestamp = 999
-  const key = "nick"
+  const key = "name"
   const value = "cable-tester"
 
-  const buf = INFO_POST.create(keypair.publicKey, keypair.secretKey, links, timestamp, key, value)
+  const buf = INFO_POST.create(keypair.publicKey, keypair.secretKey, links, timestamp, [[key, value]])
   t.equal(cable.peekPost(buf), constants.INFO_POST, "post type should be post/info")
   const messageSignatureCorrect = crypto.verify(buf, keypair.publicKey)
   t.true(messageSignatureCorrect, "embedded cryptographic signature should be valid")
@@ -368,8 +368,54 @@ test("2: post/info", t => {
   t.equal(obj.postType, constants.INFO_POST, "deserialized post type should be post/info")
   t.same(obj.timestamp, timestamp, "timestamp should be same")
   t.same(obj.links, links, "links should be same")
-  t.same(obj.key, key, "key should be same")
-  t.same(obj.value, value, "value should be same")
+  t.true(obj.info.has(key), "key should be same")
+  t.same(obj.info.get(key), value, "value should be same")
+  t.same(obj.publicKey, keypair.publicKey, "public key should be same")
+  t.end()
+})
+
+test("2: post/info (set key=accept-role only)", t => {
+  const keypair = crypto.generateKeypair()
+  const links = generateFakeHashes(1)
+  const timestamp = 999
+  const key = "accept-role"
+  const value = 0
+
+  const buf = INFO_POST.create(keypair.publicKey, keypair.secretKey, links, timestamp, [[key, value]])
+  t.equal(cable.peekPost(buf), constants.INFO_POST, "post type should be post/info")
+  const messageSignatureCorrect = crypto.verify(buf, keypair.publicKey)
+  t.true(messageSignatureCorrect, "embedded cryptographic signature should be valid")
+  const obj = INFO_POST.toJSON(buf)
+  t.equal(obj.postType, constants.INFO_POST, "deserialized post type should be post/info")
+  t.same(obj.timestamp, timestamp, "timestamp should be same")
+  t.same(obj.links, links, "links should be same")
+  t.true(obj.info.has(key), "key should be same")
+  t.same(obj.info.get(key), value, "value should be same")
+  t.same(obj.publicKey, keypair.publicKey, "public key should be same")
+  t.end()
+})
+
+test("2: post/info (set key=accept-role and key=name)", t => {
+  const keypair = crypto.generateKeypair()
+  const links = generateFakeHashes(1)
+  const timestamp = 999
+  const kvarr = [
+    ["name", "test-person"],
+    ["accept-role", 1]
+  ]
+
+  const buf = INFO_POST.create(keypair.publicKey, keypair.secretKey, links, timestamp, kvarr)
+  t.equal(cable.peekPost(buf), constants.INFO_POST, "post type should be post/info")
+  const messageSignatureCorrect = crypto.verify(buf, keypair.publicKey)
+  t.true(messageSignatureCorrect, "embedded cryptographic signature should be valid")
+  const obj = INFO_POST.toJSON(buf)
+  t.equal(obj.postType, constants.INFO_POST, "deserialized post type should be post/info")
+  t.same(obj.timestamp, timestamp, "timestamp should be same")
+  t.same(obj.links, links, "links should be same")
+  for (let [key, value] of kvarr) {
+    t.true(obj.info.has(key), "key should be same")
+    t.same(obj.info.get(key), value, "value should be same")
+  }
   t.same(obj.publicKey, keypair.publicKey, "public key should be same")
   t.end()
 })

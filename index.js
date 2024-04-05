@@ -990,24 +990,46 @@ class DELETE_POST {
   }
 }
   
-// TODO (2023-04-20): take a list of [key, value] instead of a single pair
+// kvarr is a list of pairs [key, value]
+// TODO (2023-02-16): use [{"key": key, "value": value}] pairs instead of map?
+// example usage inside cable-core infoHelper.name(bap) -> [{"key": "name", value: bap}]
 class INFO_POST {
-  static create(publicKey, secretKey, links, timestamp, key, value) {
-    if (arguments.length !== 6) { throw wrongNumberArguments(6, arguments.length, "create(publicKey, secretKey, links, timestamp, key, value)") }
+  static create(publicKey, secretKey, links, timestamp, kvarr) {
+    if (arguments.length !== 5) { throw wrongNumberArguments(5, arguments.length, "create(publicKey, secretKey, links, timestamp, kvarr)") }
     if (!isBufferSize(publicKey, constants.PUBLICKEY_SIZE)) { throw bufferExpected("publicKey", constants.PUBLICKEY_SIZE) }
     if (!isBufferSize(secretKey, constants.SECRETKEY_SIZE)) { throw bufferExpected("secretKey", constants.SECRETKEY_SIZE) }
     if (!isArrayHashes(links)) { throw LINKS_EXPECTED }
-    if (!isInteger(timestamp)) { throw integerExpected("timestamp") }
-    if (!isString(key)) { throw stringExpected("key") }
-    if (!isString(value)) { throw stringExpected("value") }
+    if (!isNonNegativeInteger(timestamp)) { throw integerExpected("timestamp") }
 
-    // convert to buf: yields correct length wrt utf-8 bytes + used when copying
-    const keyBuf = b4a.from(key, "utf8")
-    validation.checkInfoKey(keyBuf)
-    const valueBuf = b4a.from(value, "utf8")
-    validation.checkInfoValue(valueBuf)
-    if (key === "name") {
-      validation.checkUsername(valueBuf)
+    const kvBufs = []
+    const kvSize = [] // used in determineBufferSize call below the loop
+    for (let [key, value] of kvarr) {
+      if (!isString(key)) { throw stringExpected("key") }
+      // convert to buf: yields correct length wrt utf-8 bytes + used when copying
+      const keyBuf = b4a.from(key, "utf8")
+      validation.checkInfoKey(keyBuf)
+      kvSize.push({s: keyBuf.length})
+
+      // fill the value buf conditionally on which key it is the value for
+      let valueBuf
+      switch (key) {
+        case "name":
+          if (!isString(value)) { throw stringExpected("value") }
+          valueBuf = b4a.from(value, "utf8")
+          validation.checkUsername(valueBuf)
+          break
+        case "accept-role":
+          if (!isInteger(value)) { throw integerExpected("value") }
+          valueBuf = encodeVarintBuffer(value)
+          validation.checkAcceptRole(valueBuf)
+          break
+        default:
+          throw unknownInfoKey(key)
+      }
+      validation.checkInfoValue(valueBuf)
+      kvSize.push({s: valueBuf.length})
+
+      kvBufs.push([keyBuf, valueBuf])
     }
 
     const size = determineBufferSize([
@@ -1016,8 +1038,7 @@ class INFO_POST {
       {h: links.length},
       {v: constants.INFO_POST},
       {v: timestamp},
-      {s: keyBuf.length},
-      {s: valueBuf.length},
+      ...kvSize,
       {v: 0} // concluding keyN_len = 0
     ]) 
 
@@ -1037,16 +1058,18 @@ class INFO_POST {
     offset += writeVarint(constants.INFO_POST, buf, offset)
     // 6. write timestamp
     offset += writeVarint(timestamp, buf, offset)
-    // TODO (2023-07-12): this intentionally only handles the 1 value as spec only has 1 defined key (name). if we
-    // change that, improve this routine to take multiple values into account
-    // 7. write keyLen
-    offset += writeVarint(keyBuf.length, buf, offset)
-    // 8. write the key
-    offset += b4a.copy(keyBuf, buf, offset)
-    // 9. write valueLen
-    offset += writeVarint(valueBuf.length, buf, offset)
-    // 10. write the value
-    offset += b4a.copy(valueBuf, buf, offset)
+
+    // iterate over the various keys and their values of which this post/info consists
+    for (let [keyBuf, valueBuf] of kvBufs) {
+      // 7. write keyLen
+      offset += writeVarint(keyBuf.length, buf, offset)
+      // 8. write the key
+      offset += b4a.copy(keyBuf, buf, offset)
+      // 9. write valueLen
+      offset += writeVarint(valueBuf.length, buf, offset)
+      // 10. write the value
+      offset += b4a.copy(valueBuf, buf, offset)
+    }
     // 11. finally: signal end of key-val list by writing keyN_len = 0
     offset += writeVarint(0, buf, offset)
     
@@ -1058,7 +1081,7 @@ class INFO_POST {
   }
 
   static toJSON(buf) {
-    // { publicKey, signature, links, postType, timestamp, key, value }
+    // { publicKey, signature, links, postType, timestamp, info (a map)}
     let offset = 0
     // 1. get publicKey
     const publicKey = buf.slice(0, constants.PUBLICKEY_SIZE)
@@ -1087,34 +1110,55 @@ class INFO_POST {
     // 6. get timestamp
     const timestamp = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    // 7. get keyLen
-    const keyLen = decodeVarintSlice(buf, offset)
-    offset += varint.decode.bytes
-    // 8. use keyLen to get key
-    const keyBuf = buf.slice(offset, offset + keyLen)
-    offset += keyLen
-    validation.checkInfoKey(keyBuf)
-    const key = b4a.toString(keyBuf, "utf8")
-    // 9. get valueLen
-    const valueLen = decodeVarintSlice(buf, offset)
-    offset += varint.decode.bytes
-    // 10. use valueLen to get value
-    const valueBuf = buf.slice(offset, offset + valueLen)
-    offset += valueLen
-    validation.checkInfoValue(valueBuf)
-    if (key === "name") {
-      validation.checkUsername(valueBuf)
+    if (!isNonNegativeInteger(timestamp)) { throw integerExpected("timestamp") }
+
+    const info = new Map()
+
+    // iterate over and extract the various keys and their values of which this post/info consists
+    while (true) {
+      // 7. get keyLen
+      const keyLen = decodeVarintSlice(buf, offset)
+      offset += varint.decode.bytes
+     
+      // if keyLen === 0 then we have no more key value pairs in this response
+      if (keyLen === 0) { break }
+
+      // 8. use keyLen to get key
+      const keyBuf = buf.slice(offset, offset + keyLen)
+      offset += keyLen
+      validation.checkInfoKey(keyBuf)
+      const key = b4a.toString(keyBuf, "utf8")
+      // 9. get valueLen
+      const valueLen = decodeVarintSlice(buf, offset)
+      offset += varint.decode.bytes
+      // 10. use valueLen to get value
+      const valueBuf = buf.slice(offset, offset + valueLen)
+      offset += valueLen
+      validation.checkInfoValue(valueBuf)
+      let value 
+      switch (key) {
+        case "name":
+          validation.checkUsername(valueBuf)
+          value = b4a.toString(valueBuf, "utf8")
+          break
+        case "accept-role":
+          validation.checkAcceptRole(valueBuf)
+          value = varint.decode(valueBuf)
+          break
+        default:
+          throw unknownInfoKey(key)
+      }
+      info.set(key, value)
     }
-    const value = b4a.toString(valueBuf, "utf8")
     // TODO (2023-07-12): if spec's post/info is expanded with more than 1 key (name), improve this routine
     // 11. get terminating keyN_len (should be zero)
-    const finalValueLen = decodeVarintSlice(buf, offset)
-    offset += varint.decode.bytes
-    if (finalValueLen !== 0) {
-      return new Error(`"post/info: final keyN_len should be 0, was ${finalValueLen}`)
+    // const finalValueLen = decodeVarintSlice(buf, offset)
+    // offset += varint.decode.bytes
+    if (offset !== buf.length) {
+      return new Error(`"post/info: final keyN_len was 0 and the buffer should contain no more bytes; contains an additional ${buf.length - offset} bytes`)
     }
 
-    return { publicKey, signature, links, postType, timestamp, key, value }
+    return { publicKey, signature, links, postType, timestamp, info }
   }
 }
 
