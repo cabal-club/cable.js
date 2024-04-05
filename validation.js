@@ -30,8 +30,8 @@ function checkChannelName (channelBuf) {
 }
 
 function checkReason (reasonBuf) {
-  const correctlySized = isBufferSizeMin(channelBuf, constants.REASON_MIN_CODEPOINTS) && isBufferSizeMax(channelBuf, constants.REASON_MAX_CODEPOINTS)
-  if (!correctlySized) { throw codepointRangeExpected("channel", constants.TOPIC_MIN_CODEPOINTS, constants.TOPIC_MAX_CODEPOINTS, channelBuf.length) }
+  const correctlySized = isBufferSizeMin(reasonBuf, constants.REASON_MIN_CODEPOINTS) && isBufferSizeMax(reasonBuf, constants.REASON_MAX_CODEPOINTS)
+  if (!correctlySized) { throw codepointRangeExpected("REASON", constants.REASON_MIN_CODEPOINTS, constants.REASON_MAX_CODEPOINTS, reasonBuf.length) }
 }
 
 function checkTopic(topicBuf) {
@@ -47,6 +47,16 @@ function checkUsername(valueBuf) {
 function checkInfoValue (valueBuf) {
   const correctlySized = isBufferSizeMax(valueBuf, constants.INFO_VALUE_MAX_BYTES)
   if (!correctlySized) { throw new bufferExpectedMax("value", constants.INFO_VALUE_MAX_BYTES, textBuf.len) }
+}
+
+function checkAcceptRole (valueBuf) {
+  const acceptedValues = b4a.equals(b4a.from([1]), valueBuf) || b4a.equals(b4a.from([0]), valueBuf)
+  if (!acceptedValues) { throw new Error(`expected 'accept-role' to be a buffer containing value 0 or 1; was ${valueBuf}`) }
+}
+
+function checkFuture (value) {
+  const acceptedValues = (value === 0 || value === 1)
+  if (!acceptedValues) { throw new Error(`expected 'future' to contain either value 0 or 1; was ${value}`) }
 }
 
 function checkInfoKey(keyBuf) {
@@ -81,8 +91,10 @@ module.exports = {
   checkInfoKey,
   checkInfoValue,
   checkUsername,
+  checkAcceptRole,
   checkTopic,
   checkChannelName,
   checkReason,
-  checkRecipientsLength 
+  checkRecipientsLength,
+  checkFuture
 }
