@@ -687,17 +687,20 @@ class CHANNEL_LIST_RESPONSE {
 }
 
 class MODERATION_STATE_REQUEST {
-  static create(reqid, channels, future, oldest) {
-    if (arguments.length !== 4) { throw wrongNumberArguments(4, arguments.length, "create(reqid, channels, future, oldest)") }
+  static create(reqid, ttl, channels, future, oldest) {
+    if (arguments.length !== 5) { throw wrongNumberArguments(5, arguments.length, "create(reqid, channels, future, oldest)") }
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
+    if (!isInteger(ttl)) { throw integerExpected("ttl") }
     if (!isArrayString(channels)) { throw STRINGS_EXPECTED }
     if (!isInteger(future)) { throw integerExpected("future") }
-    if (!isInteger(oldest)) { throw integerExpected("oldest") }
+    validation.checkFuture(future)
+    if (!isNonNegativeInteger(oldest)) { throw integerExpected("oldest") }
 
     const size = determineBufferSize([
       {v: constants.MODERATION_STATE_REQUEST},
       {b: constants.CIRCUITID_SIZE},
       {b: constants.REQID_SIZE},
+      {v: ttl},
       {b: countChannelsBytes(channels)},
       {v: 0}, // concluding channelLen = 0
       {v: future},
@@ -713,21 +716,23 @@ class MODERATION_STATE_REQUEST {
     offset += b4a.copy(EMPTY_CIRCUIT_ID, frame, offset)
     // 3. write reqid
     offset += b4a.copy(reqid, frame, offset)
-    // 4. write channels
+    // 4. write ttl
+    offset += writeVarint(ttl, frame, offset)
+    // 5. write channels
     channels.forEach(channel => {
       // convert to buf: yields correct length wrt utf-8 bytes + used when copying
       const channelBuf = b4a.from(channel, "utf8")
       validation.checkChannelName(channelBuf)
-      // 4.1 write channelLen
+      // 5.1 write channelLen
       offset += writeVarint(channelBuf.length, frame, offset)
-      // 4.2 write channel
+      // 5.2 write channel
       offset += b4a.copy(channelBuf, frame, offset)
     })
-    // 4.3 finally: write a channelLen = 0 to signal end of channel data
+    // 5.3 finally: write a channelLen = 0 to signal end of channel data
     offset += writeVarint(0, frame, offset)
-    // 5. write future varint
+    // 6. write future varint
     offset += writeVarint(future, frame, offset)
-    // 6. write oldest varint
+    // 7. write oldest varint
     offset += writeVarint(oldest, frame, offset)
 
     return prependMsgLen(frame)
@@ -755,18 +760,22 @@ class MODERATION_STATE_REQUEST {
     const reqid = buf.slice(offset, offset+constants.REQID_SIZE)
     offset += constants.REQID_SIZE
     if (!isBufferSize(reqid, constants.REQID_SIZE)) { throw bufferExpected("reqid", constants.REQID_SIZE) }
-    // 4. get channels
+    // 4. get ttl
+    const ttl = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
+    if (!ttlRangeCorrect(ttl)) { throw ttlRangeExpected(ttl) }
+    // 5. get channels
     const channels = []
     // msgLen tells us the number of bytes in the remaining message i.e. *excluding* msgLen, 
     // so we need to account for that by adding msgLenBytes
     let remaining = msgLen - offset + msgLenBytes
     while (remaining > 0) {
-    // 4.1 get channel size
+    // 5.1 get channel size
       const channelLen = decodeVarintSlice(buf, offset)
       offset += varint.decode.bytes
-      // 4.3 if channelLen === 0 then we have no more channels in this response
+      // 5.3 if channelLen === 0 then we have no more channels in this response
       if (channelLen === 0) { break }
-      // 4.2. use channelLen to slice out the channel
+      // 5.2. use channelLen to slice out the channel
       const channelBuf = buf.slice(offset, offset + channelLen)
       offset += channelLen
       validation.checkChannelName(channelBuf)
@@ -774,14 +783,18 @@ class MODERATION_STATE_REQUEST {
       channels.push(channel)
       remaining = msgLen - offset + msgLenBytes
     }
-    // 5. get future
+    // 6. get future
     const future = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    // 6. get oldest
+    // 7. get oldest
     const oldest = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
 
-    return { msgLen, msgType, reqid, channels, future, oldest }
+    return { msgLen, msgType, reqid, ttl, channels, future, oldest }
+  }
+
+  static decrementTTL(buf) {
+    return insertNewTTL(buf, constants.MODERATION_STATE_REQUEST)
   }
 }
 
@@ -1475,7 +1488,9 @@ class ROLE_POST {
 
     // convert to buf: yields correct length wrt utf-8 bytes + used when copying
     const channelBuf = b4a.from(channel, "utf8")
-    validation.checkChannelName(channelBuf)
+    if (channel.length > 0) {
+      validation.checkChannelName(channelBuf)
+    }
     const reasonBuf = b4a.from(reason, "utf8")
     validation.checkReason(reasonBuf)
     
@@ -1520,6 +1535,8 @@ class ROLE_POST {
     offset += b4a.copy(channelBuf, buf, offset)
     // 12. write recipient key
     offset += b4a.copy(recipient, buf, offset)
+    // 13. write role
+    offset += writeVarint(role, buf, offset)
     
     // now, time to make a signature
     crypto.sign(buf, secretKey)
@@ -1529,7 +1546,7 @@ class ROLE_POST {
   }
 
   static toJSON(buf) {
-    // {publicKey, secretKey, links, timestamp, reason, privacy, channel, recipient, role }
+    // {publicKey, links, timestamp, reason, privacy, channel, recipient, role }
     let offset = 0
     // 1. get publicKey
     const publicKey = buf.slice(0, constants.PUBLICKEY_SIZE)
@@ -1576,15 +1593,32 @@ class ROLE_POST {
     // 11. use channelLen to get channel
     const channelBuf = buf.slice(offset, offset + channelLen)
     offset += channelLen
-    validation.checkChannelName(channelBuf)
+    if (channelLen > 0) {
+      validation.checkChannelName(channelBuf)
+    }
     const channel = b4a.toString(channelBuf, "utf8")
     // 12. get recipient
-    const recipient = buf.slice(offset, constants.PUBLICKEY_SIZE)
+    const recipient = buf.slice(offset, offset + constants.PUBLICKEY_SIZE)
     offset += constants.PUBLICKEY_SIZE
+    // 13. get role varint
+    const role = decodeVarintSlice(buf, offset)
+    offset += varint.decode.bytes
 
-    return { publicKey, secretKey, links, timestamp, reason, privacy, channel, recipient, role }
+    return { publicKey, signature, links, postType, timestamp, reason, privacy, channel, recipient, role }
   }
 }
+
+// class MODERATION_SEED {
+//   // TODO (2024-02-16): represent recipients and their temporary roles somehow
+//   static create() {
+//   }
+//
+//   static toJSON(buf) {
+//     // {}
+//     let offset = 0
+//     return {}
+//   }
+// }
 
 class MODERATION_POST {
   static create(publicKey, secretKey, links, channel, timestamp, recipients, action, reason, privacy) {
@@ -1600,28 +1634,33 @@ class MODERATION_POST {
       case constants.ACTION_UNDROP_POST:
         if (!isArrayHashes(recipients)) { throw ARRAY_POSTS_EXPECTED }
         if (!isString(channel)) { throw stringExpected("channel") }
+        validation.checkRecipientsLength(recipients)
         break
       case constants.ACTION_HIDE_USER:
       case constants.ACTION_UNHIDE_USER:
         if (!isArrayPublicKeys(recipients)) { throw ARRAY_KEYS_EXPECTED }
         if (!isString(channel)) { throw stringExpected("channel") }
+        validation.checkRecipientsLength(recipients)
         break
       case constants.ACTION_DROP_CHANNEL:
       case constants.ACTION_UNDROP_CHANNEL:
         if (recipients.length > 0) { throw EMPTY_RECIPIENTS_EXPECTED }
         break
+      default:
+        throw new Error(`'action' had value of unknown constant: ${action}`)
     }
-    if (!isInteger(timestamp)) { throw integerExpected("timestamp") }
+    if (!isNonNegativeInteger(timestamp)) { throw integerExpected("timestamp") }
     if (!isString(reason)) { throw stringExpected("reason") }
     if (!isInteger(privacy)) { throw integerExpected("privacy") }
 
     // convert to buf: yields correct length wrt utf-8 bytes + used when copying
     const channelBuf = b4a.from(channel, "utf8")
-    validation.checkChannelName(channelBuf)
+    // channel length can be zero for moderation post -> interpreted as cabal context
+    if (channel.length > 0) {
+      validation.checkChannelName(channelBuf)
+    }
     const reasonBuf = b4a.from(reason, "utf8")
     validation.checkReason(reasonBuf)
-
-    validation.checkRecipientsLength(recipients)
     
     const size = determineBufferSize([
       {b: constants.PUBLICKEY_SIZE},
@@ -1649,7 +1688,7 @@ class MODERATION_POST {
       offset += b4a.copy(link, buf, offset)
     })
     // 5. write postType
-    offset += writeVarint(constants.ROLE_POST, buf, offset)
+    offset += writeVarint(constants.MODERATION_POST, buf, offset)
     // 6. write timestamp
     offset += writeVarint(timestamp, buf, offset)
     // 7. write reasonLen
@@ -1679,7 +1718,7 @@ class MODERATION_POST {
   }
 
   static toJSON(buf) {
-    // {publicKey, secretKey, links, channel, timestamp, recipients, action, reason, privacy}
+    // {publicKey, links, channel, timestamp, recipients, action, reason, privacy}
     let offset = 0
     // 1. get publicKey
     const publicKey = buf.slice(0, constants.PUBLICKEY_SIZE)
@@ -1702,12 +1741,13 @@ class MODERATION_POST {
     // 5. get postType
     const postType = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    if (postType !== constants.ROLE_POST) {
-      return new Error(`decoded postType (${postType}) is not of expected type (constants.ROLE_POST)`)
+    if (postType !== constants.MODERATION_POST) {
+      return new Error(`decoded postType (${postType}) is not of expected type (constants.MODERATION_POST)`)
     }
     // 6. get timestamp
     const timestamp = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
+    if (!isNonNegativeInteger(timestamp)) { throw integerExpected("timestamp") }
     // 7. get reasonLen
     const reasonLen = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -1722,11 +1762,15 @@ class MODERATION_POST {
     // 10. get channelLen
     const channelLen = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
-    // 11. use channelLen to get channel
-    const channelBuf = buf.slice(offset, offset + channelLen)
-    offset += channelLen
-    validation.checkChannelName(channelBuf)
-    const channel = b4a.toString(channelBuf, "utf8")
+    // channel len of 0 is permissible for post/moderation (signals entire cabal)
+    let channel = ""
+    if (channelLen > 0) { 
+      // 11. use channelLen to get channel
+      const channelBuf = buf.slice(offset, offset + channelLen)
+      offset += channelLen
+      validation.checkChannelName(channelBuf)
+      channel = b4a.toString(channelBuf, "utf8")
+    }
     // 12. get numLinks
     const recipientCount = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -1736,7 +1780,6 @@ class MODERATION_POST {
       recipients.push(buf.slice(offset, offset + constants.HASH_SIZE)) // hack: making use current spec and that publicKeys and hashes have same # bytes ':)
       offset += constants.HASH_SIZE
     }
-    validation.checkRecipientsLength(recipients)
 
     // 14. get action varint
     const action = decodeVarintSlice(buf, offset)
@@ -1749,10 +1792,12 @@ class MODERATION_POST {
       case constants.ACTION_DROP_POST:
       case constants.ACTION_UNDROP_POST:
         if (!isArrayHashes(recipients)) { throw ARRAY_POSTS_EXPECTED }
+        validation.checkRecipientsLength(recipients)
         break
       case constants.ACTION_HIDE_USER:
       case constants.ACTION_UNHIDE_USER:
         if (!isArrayPublicKeys(recipients)) { throw ARRAY_KEYS_EXPECTED }
+        validation.checkRecipientsLength(recipients)
         break
       case constants.ACTION_DROP_CHANNEL:
       case constants.ACTION_UNDROP_CHANNEL:
@@ -1760,7 +1805,7 @@ class MODERATION_POST {
         break
     }
 
-    return { publicKey, secretKey, links, timestamp, reason, privacy, channel, recipients, action }
+    return { publicKey, signature, links, postType, timestamp, reason, privacy, channel, recipients, action }
   }
 }
 
@@ -1836,9 +1881,8 @@ class BLOCK_POST {
     return buf
   }
 
-  /* 2024-02-13: CONTINUE CONVERTING FROM HERE */
   static toJSON(buf) {
-    // {publicKey, secretKey, links, timestamp, recipient, drop, notify, reason, privacy}
+    // {publicKey, links, timestamp, recipient, drop, notify, reason, privacy}
     let offset = 0
     // 1. get publicKey
     const publicKey = buf.slice(0, constants.PUBLICKEY_SIZE)
@@ -1897,19 +1941,18 @@ class BLOCK_POST {
     const notify = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
 
-    return { publicKey, secretKey, links, timestamp, reason, privacy, recipients, drop, notify }
+    return { publicKey, signature, links, postType, timestamp, reason, privacy, recipients, drop, notify }
   }
 }
 
 class UNBLOCK_POST {
   static create(publicKey, secretKey, links, timestamp, recipients, undrop, reason, privacy) {
-    if (arguments.length !== 9) { throw wrongNumberArguments(9, arguments.length, "create(publicKey, secretKey, links, timestamp, recipient, undrop, reason, privacy)") }
+    if (arguments.length !== 8) { throw wrongNumberArguments(8, arguments.length, "create(publicKey, secretKey, links, timestamp, recipient, undrop, reason, privacy)") }
     if (!isBufferSize(publicKey, constants.PUBLICKEY_SIZE)) { throw bufferExpected("publicKey", constants.PUBLICKEY_SIZE) }
     if (!isBufferSize(secretKey, constants.SECRETKEY_SIZE)) { throw bufferExpected("secretKey", constants.SECRETKEY_SIZE) }
     if (!isArrayHashes(links)) { throw LINKS_EXPECTED }
     if (!isArrayPublicKeys(recipients)) { throw ARRAY_KEYS_EXPECTED }
-    if (!isInteger(timestamp)) { throw integerExpected("timestamp") }
-    if (!isInteger(notify)) { throw integerExpected("notify") }
+    if (!isNonNegativeInteger(timestamp)) { throw integerExpected("timestamp") }
     if (!isInteger(undrop)) { throw integerExpected("undrop") }
     if (!isInteger(privacy)) { throw integerExpected("privacy") }
     if (!isString(reason)) { throw stringExpected("reason") }
@@ -1970,9 +2013,8 @@ class UNBLOCK_POST {
     return buf
   }
 
-  /* 2024-02-13: CONTINUE CONVERTING FROM HERE */
   static toJSON(buf) {
-    // {publicKey, secretKey, links, timestamp, recipient, undrop, notify, reason, privacy}
+    // {publicKey, links, timestamp, recipient, undrop, notify, reason, privacy}
     let offset = 0
     // 1. get publicKey
     const publicKey = buf.slice(0, constants.PUBLICKEY_SIZE)
@@ -2001,6 +2043,7 @@ class UNBLOCK_POST {
     // 6. get timestamp
     const timestamp = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
+    if (!isNonNegativeInteger(timestamp)) { throw integerExpected("timestamp") }
     // 7. get reasonLen
     const reasonLen = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -2027,7 +2070,7 @@ class UNBLOCK_POST {
     const undrop = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
 
-    return { publicKey, secretKey, links, timestamp, reason, privacy, recipients, undrop }
+    return { publicKey, signature, links, postType, timestamp, reason, privacy, recipients, undrop }
   }
 }
 
@@ -2088,6 +2131,18 @@ function parsePost (buf) {
     case constants.LEAVE_POST:
       obj = LEAVE_POST.toJSON(buf)
       break
+    case constants.ROLE_POST:
+      obj = ROLE_POST.toJSON(buf)
+      break
+    case constants.MODERATION_POST:
+      obj = MODERATION_POST.toJSON(buf)
+      break
+    case constants.BLOCK_POST:
+      obj = BLOCK_POST.toJSON(buf)
+      break
+    case constants.UNBLOCK_POST:
+      obj = UNBLOCK_POST.toJSON(buf)
+      break
     default:
       throw new Error(`parse post: unknown post type (${postType})`)
   }
@@ -2122,6 +2177,9 @@ function parseMessage (buf) {
       break
     case constants.CHANNEL_LIST_RESPONSE:
       obj = CHANNEL_LIST_RESPONSE.toJSON(buf)
+      break
+    case constants.MODERATION_STATE_REQUEST:
+      obj = MODERATION_STATE_REQUEST.toJSON(buf)
       break
     default:
       throw new Error(`parse post: unknown post type (${postType})`)
@@ -2301,6 +2359,7 @@ module.exports = {
   TIME_RANGE_REQUEST, 
   CHANNEL_STATE_REQUEST, 
   CHANNEL_LIST_REQUEST, 
+  MODERATION_STATE_REQUEST,
 
   TEXT_POST,
   DELETE_POST,
@@ -2308,6 +2367,11 @@ module.exports = {
   TOPIC_POST,
   JOIN_POST,
   LEAVE_POST,
+
+  ROLE_POST,
+  MODERATION_POST,
+  BLOCK_POST,
+  UNBLOCK_POST,
 
   peekMessage,
   peekReqid,
