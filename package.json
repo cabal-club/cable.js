@@ -7,7 +7,7 @@
     "test": "$(npm bin)/tape test/*.js | $(npm bin)/tap-spec",
     "bail": "$(npm bin)/tape test/*.js | $(npm bin)/tap-bail | $(npm bin)/tap-spec "
   },
-  "author": "cabal-club authors",
+  "author": "cable.js authors",
   "license": "LGPL-3.0-or-later",
   "dependencies": {
     "b4a": "1.6.4",

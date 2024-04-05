@@ -1,5 +1,5 @@
 <!--
-SPDX-FileCopyrightText: 2023 the cabal-club authors
+SPDX-FileCopyrightText: 2023 the cable.js authors
 
 SPDX-License-Identifier: CC0-1.0
 -->
