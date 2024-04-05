@@ -23,6 +23,9 @@ const ARRAY_KEYS_EXPECTED = new Error("expected recipients to contain an array o
 const EMPTY_RECIPIENTS_EXPECTED = new Error("expected recipients to be length zero")
 const HASHES_EXPECTED = new Error("expected hashes to contain an array of hash-sized buffers")
 const STRINGS_EXPECTED = new Error("expected channels to contain an array of strings")
+function unknownInfoKey (key) {
+  return new Error(`expected post/info key to be either 'name' or 'accept-role'; was ${key}}`)
+}
 function bufferExpected (param, size) {
   return new Error(`expected ${param} to be a buffer of size ${size}`)
 }
@@ -343,8 +346,8 @@ class TIME_RANGE_REQUEST {
     if (!isInteger(ttl)) { throw integerExpected("ttl") }
     if (!ttlRangeCorrect(ttl)) { throw ttlRangeExpected(ttl) }
     if (!isString(channel)) { throw stringExpected("channel") }
-    if (!isInteger(timeStart)) { throw integerExpected("timeStart") }
-    if (!isInteger(timeEnd)) { throw integerExpected("timeEnd") }
+    if (!isNonNegativeInteger(timeStart)) { throw integerExpected("timeStart") }
+    if (!isNonNegativeInteger(timeEnd)) { throw integerExpected("timeEnd") }
     if (!isInteger(limit)) { throw integerExpected("limit") }
 
     // convert to buf: yields correct length wrt utf-8 bytes + used when copying
@@ -420,9 +423,11 @@ class TIME_RANGE_REQUEST {
     // 8. get timeStart
     const timeStart = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
+    if (!isNonNegativeInteger(timeStart)) { throw integerExpected("timeStart") }
     // 9. get timeEnd
     const timeEnd = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
+    if (!isNonNegativeInteger(timeEnd)) { throw integerExpected("timeEnd") }
     // 10. get limit
     const limit = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -443,6 +448,7 @@ class CHANNEL_STATE_REQUEST {
     if (!ttlRangeCorrect(ttl)) { throw ttlRangeExpected(ttl) }
     if (!isString(channel)) { throw stringExpected("channel") }
     if (!isInteger(future)) { throw integerExpected("future") }
+    validation.checkFuture(future)
 
     // convert to buf: yields correct length wrt utf-8 bytes + used when copying
     const channelBuf = b4a.from(channel, "utf8")
@@ -511,6 +517,7 @@ class CHANNEL_STATE_REQUEST {
     // 8. get future
     const future = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
+    validation.checkFuture(future)
 
     return { msgLen, msgType, reqid, ttl, channel, future }
   }
@@ -785,7 +792,7 @@ class TEXT_POST {
     if (!isBufferSize(secretKey, constants.SECRETKEY_SIZE)) { throw bufferExpected("secretKey", constants.SECRETKEY_SIZE) }
     if (!isArrayHashes(links)) { throw LINKS_EXPECTED }
     if (!isString(channel)) { throw stringExpected("channel") }
-    if (!isInteger(timestamp)) { throw integerExpected("timestamp") }
+    if (!isNonNegativeInteger(timestamp)) { throw integerExpected("timestamp") }
     if (!isString(text)) { throw stringExpected("text") }
 
     // convert to buf: yields correct length wrt utf-8 bytes + used when copying
@@ -867,6 +874,7 @@ class TEXT_POST {
     // 6. get timestamp
     const timestamp = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
+    if (!isNonNegativeInteger(timestamp)) { throw integerExpected("timestamp") }
     // 7. get channelLen
     const channelLen = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -894,7 +902,7 @@ class DELETE_POST {
     if (!isBufferSize(publicKey, constants.PUBLICKEY_SIZE)) { throw bufferExpected("publicKey", constants.PUBLICKEY_SIZE) }
     if (!isBufferSize(secretKey, constants.SECRETKEY_SIZE)) { throw bufferExpected("secretKey", constants.SECRETKEY_SIZE) }
     if (!isArrayHashes(links)) { throw LINKS_EXPECTED }
-    if (!isInteger(timestamp)) { throw integerExpected("timestamp") }
+    if (!isNonNegativeInteger(timestamp)) { throw integerExpected("timestamp") }
     if (!isArrayHashes(hashes)) { throw HASHES_EXPECTED }
 
     const size = determineBufferSize([
@@ -966,6 +974,7 @@ class DELETE_POST {
     // 6. get timestamp
     const timestamp = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
+    if (!isNonNegativeInteger(timestamp)) { throw integerExpected("timestamp") }
     // 7. get num_deletions
     const numDeletions = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -1116,7 +1125,7 @@ class TOPIC_POST {
     if (!isBufferSize(secretKey, constants.SECRETKEY_SIZE)) { throw bufferExpected("secretKey", constants.SECRETKEY_SIZE) }
     if (!isArrayHashes(links)) { throw LINKS_EXPECTED }
     if (!isString(channel)) { throw stringExpected("channel") }
-    if (!isInteger(timestamp)) { throw integerExpected("timestamp") }
+    if (!isNonNegativeInteger(timestamp)) { throw integerExpected("timestamp") }
     if (!isString(topic)) { throw stringExpected("topic") }
     
     // convert to buf: yields correct length wrt utf-8 bytes + used when copying
@@ -1197,6 +1206,7 @@ class TOPIC_POST {
     // 6. get timestamp
     const timestamp = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
+    if (!isNonNegativeInteger(timestamp)) { throw integerExpected("timestamp") }
     // 7. get channelLen
     const channelLen = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -1225,7 +1235,7 @@ class JOIN_POST {
     if (!isBufferSize(secretKey, constants.SECRETKEY_SIZE)) { throw bufferExpected("secretKey", constants.SECRETKEY_SIZE) }
     if (!isArrayHashes(links)) { throw LINKS_EXPECTED }
     if (!isString(channel)) { throw stringExpected("channel") }
-    if (!isInteger(timestamp)) { throw integerExpected("timestamp") }
+    if (!isNonNegativeInteger(timestamp)) { throw integerExpected("timestamp") }
     
     // convert to buf: yields correct length wrt utf-8 bytes + used when copying
     const channelBuf = b4a.from(channel, "utf8")
@@ -1298,6 +1308,7 @@ class JOIN_POST {
     // 6. get timestamp
     const timestamp = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
+    if (!isNonNegativeInteger(timestamp)) { throw integerExpected("timestamp") }
     // 7. get channelLen
     const channelLen = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -1318,7 +1329,7 @@ class LEAVE_POST {
     if (!isBufferSize(secretKey, constants.SECRETKEY_SIZE)) { throw bufferExpected("secretKey", constants.SECRETKEY_SIZE) }
     if (!isArrayHashes(links)) { throw LINKS_EXPECTED }
     if (!isString(channel)) { throw stringExpected("channel") }
-    if (!isInteger(timestamp)) { throw integerExpected("timestamp") }
+    if (!isNonNegativeInteger(timestamp)) { throw integerExpected("timestamp") }
 
     // convert to buf: yields correct length wrt utf-8 bytes + used when copying
     const channelBuf = b4a.from(channel, "utf8")
@@ -1391,6 +1402,7 @@ class LEAVE_POST {
     // 6. get timestamp
     const timestamp = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
+    if (!isNonNegativeInteger(timestamp)) { throw integerExpected("timestamp") }
     // 7. get channelLen
     const channelLen = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -1411,7 +1423,7 @@ class ROLE_POST {
     if (!isBufferSize(secretKey, constants.SECRETKEY_SIZE)) { throw bufferExpected("secretKey", constants.SECRETKEY_SIZE) }
     if (!isBufferSize(recipient, constants.PUBLICKEY_SIZE)) { throw bufferExpected("recipient", constants.PUBLICKEY_SIZE) }
     if (!isArrayHashes(links)) { throw LINKS_EXPECTED }
-    if (!isInteger(timestamp)) { throw integerExpected("timestamp") }
+    if (!isNonNegativeInteger(timestamp)) { throw integerExpected("timestamp") }
     if (!isInteger(role)) { throw integerExpected("role") }
     if (!isInteger(privacy)) { throw integerExpected("privacy") }
     if (!isString(channel)) { throw stringExpected("channel") }
@@ -1502,6 +1514,7 @@ class ROLE_POST {
     // 6. get timestamp
     const timestamp = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
+    if (!isNonNegativeInteger(timestamp)) { throw integerExpected("timestamp") }
     // 7. get reasonLen
     const reasonLen = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -1714,7 +1727,7 @@ class BLOCK_POST {
     if (!isBufferSize(secretKey, constants.SECRETKEY_SIZE)) { throw bufferExpected("secretKey", constants.SECRETKEY_SIZE) }
     if (!isArrayHashes(links)) { throw LINKS_EXPECTED }
     if (!isArrayPublicKeys(recipients)) { throw ARRAY_KEYS_EXPECTED }
-    if (!isInteger(timestamp)) { throw integerExpected("timestamp") }
+    if (!isNonNegativeInteger(timestamp)) { throw integerExpected("timestamp") }
     if (!isInteger(notify)) { throw integerExpected("notify") }
     if (!isInteger(drop)) { throw integerExpected("drop") }
     if (!isInteger(privacy)) { throw integerExpected("privacy") }
@@ -1810,6 +1823,7 @@ class BLOCK_POST {
     // 6. get timestamp
     const timestamp = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
+    if (!isNonNegativeInteger(timestamp)) { throw integerExpected("timestamp") }
     // 7. get reasonLen
     const reasonLen = decodeVarintSlice(buf, offset)
     offset += varint.decode.bytes
@@ -2130,6 +2144,9 @@ function decodeVarintSlice (frame, offset) {
 function isInteger(n) {
   return Number.isInteger(n)
 }
+function isNonNegativeInteger(n) {
+  return Number.isInteger(n) && n >= 0
+}
 
 function ttlRangeCorrect(ttl) {
   return ttl >= 0 && ttl <= 16
@@ -2146,52 +2163,30 @@ function isString (s) {
   return typeof s === "string"
 }
 
-function isArrayData (arr) {
+// arr is an array where each element will be passed through `fn`. if any 
+function isArrayCheck(arr, fn) {
   if (Array.isArray(arr)) {
-    for (let i = 0; i < arr.length; i++) {
-      if (!b4a.isBuffer(arr[i])) {
-        return false
-      }
-    }
-    return true
+    return arr.every(fn)
   }
   return false
+}
+
+function isArrayData (arr) {
+  return isArrayCheck(arr, b4a.isBuffer)
 }
 
 function isArrayString (arr) {
-  if (Array.isArray(arr)) {
-    for (let i = 0; i < arr.length; i++) {
-      if (typeof arr[i] !== "string") {
-        return false
-      }
-    }
-    return true
-  }
-  return false
+  return isArrayCheck(arr, isString)
 }
 
+const bufHashCheck = (el) => { return isBufferSize(el, constants.HASH_SIZE) }
 function isArrayHashes (arr) {
-  if (Array.isArray(arr)) {
-    for (let i = 0; i < arr.length; i++) {
-      if (!isBufferSize(arr[i], constants.HASH_SIZE)) {
-        return false
-      }
-    }
-    return true
-  }
-  return false
+  return isArrayCheck(arr, bufHashCheck)
 }
 
+const bufPublicKeyCheck = (el) => { return isBufferSize(el, constants.PUBLICKEY_SIZE) }
 function isArrayPublicKeys (arr) {
-  if (Array.isArray(arr)) {
-    for (let i = 0; i < arr.length; i++) {
-      if (!isBufferSize(arr[i], constants.PUBLICKEY_SIZE)) {
-        return false
-      }
-    }
-    return true
-  }
-  return false
+  return isArrayCheck(arr, bufPublicKeyCheck)
 }
 
 function encodeVarintBuffer (n) {
