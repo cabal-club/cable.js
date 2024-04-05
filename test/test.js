@@ -247,7 +247,7 @@ test("5: channel state request, decrement ttl", t => {
   const reqid = crypto.generateReqID()
   const channel = "default"
   const ttl = 3
-  const future = 100
+  const future = 0
 
   const buf = CHANNEL_STATE_REQUEST.create(reqid, ttl, channel, future)
   const newBuf = CHANNEL_STATE_REQUEST.decrementTTL(buf)
