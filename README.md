@@ -277,7 +277,8 @@ cable is capable of generating.
     ],
     "future": 0,
     "oldest": 40
-  }
+  },
+  "posthash": "95ed44282cb79f959cb20f50cc81e9d1a37ab2f19b3ecba10f6b66511716cbf6"
 }
 {
   "name": "hash response",
@@ -386,7 +387,8 @@ cable is capable of generating.
         "cabler"
       ]
     ]
-  }
+  },
+  "posthash": "75c77c259d564f3b29a431963d7243ff83811075ba80fe5e01e2e8a18ad06fab"
 }
 {
   "name": "post/topic",
@@ -458,7 +460,8 @@ cable is capable of generating.
     "channel": "default",
     "recipient": "a6bac4f48e10f3e036e3915a583977b900e048304f7527b6bf299356219d1e91",
     "role": 0
-  }
+  },
+  "posthash": "95b371fb4c5e23add1ac474667dbeec0ec731452538efbe47faf33f8dab758ff"
 }
 {
   "name": "post/moderation",
@@ -482,7 +485,8 @@ cable is capable of generating.
       "89d1baf8b98a135e7a9ab7720dbd809e234a61054187ed8bc1022c44e45010d6"
     ],
     "action": 0
-  }
+  },
+  "posthash": "515b70c1db983217683a8abf90fd5b3890a32013280b1844eedf7cb6303fd275"
 }
 {
   "name": "post/block",
@@ -506,7 +510,8 @@ cable is capable of generating.
     ],
     "drop": 0,
     "notify": 1
-  }
+  },
+  "posthash": "0914802a79af7b2f89bdd1dcdba52fb018acf39f5a766447530e67e745d4bf9c"
 }
 {
   "name": "post/unblock",
@@ -529,6 +534,7 @@ cable is capable of generating.
       "89d1baf8b98a135e7a9ab7720dbd809e234a61054187ed8bc1022c44e45010d6"
     ],
     "undrop": 1
-  }
+  },
+  "posthash": "4b2c0b67be11fd3cb5c45b0a3e467e49034fc409d23445f039d65cc2fe1c8273"
 }
 ```
