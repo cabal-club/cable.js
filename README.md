@@ -49,7 +49,9 @@ const buf = CANCEL_REQUEST.create(reqid, ttl, cancelid)
 const buf = TIME_RANGE_REQUEST.create(reqid, ttl, channel, timeStart, timeEnd, limit)
 const buf = CHANNEL_STATE_REQUEST.create(reqid, ttl, channel, future)
 const buf = CHANNEL_LIST_REQUEST.create(reqid, ttl, argOffset, limit)
+const buf = MODERATION_STATE_REQUEST.create(reqid, ttl, channels, future, oldest)
 ```
+
 #### Response-type messages
 ```js
 const buf = HASH_RESPONSE.create(reqid, hashes)
@@ -64,6 +66,10 @@ const buf = INFO_POST.create(publicKey, secretKey, links, timestamp, key, value)
 const buf = TOPIC_POST.create(publicKey, secretKey, links, channel, timestamp, topic)
 const buf = JOIN_POST.create(publicKey, secretKey, links, channel, timestamp)
 const buf = LEAVE_POST.create(publicKey, secretKey, links, channel, timestamp)
+const buf = ROLE_POST.create(publicKey, secretKey, links, channel, timestamp, recipient, role, reason, privacy)
+const buf = MODERATION_POST.create(publicKey, secretKey, links, channel, timestamp, recipients, action, reason, privacy)
+const buf = BLOCK_POST.create(publicKey, secretKey, links, timestamp, recipients, drop, notify, reason, privacy)
+const buf = UNBLOCK_POST.create(publicKey, secretKey, links, timestamp, recipients, undrop, reason, privacy)
 ```
 ### Decode a binary payload into a JSON object
 All decoding works the same way, regardless of the message type or post type. The method
@@ -79,6 +85,7 @@ const obj = CANCEL_REQUEST.toJSON(buf)
 const obj = TIME_RANGE_REQUEST.toJSON(buf)
 const obj = CHANNEL_STATE_REQUEST.toJSON(buf)
 const obj = CHANNEL_LIST_REQUEST.toJSON(buf)
+const obj = MODERATION_STATE_REQUEST.toJSON(buf)
 ```
 #### Response-type messages
 ```js
@@ -94,6 +101,10 @@ const obj = INFO_POST.toJSON(buf)
 const obj = TOPIC_POST.toJSON(buf)
 const obj = JOIN_POST.toJSON(buf)
 const obj = LEAVE_POST.toJSON(buf)
+const obj = ROLE_POST.toJSON(buf)
+const obj = MODERATION_POST.toJSON(buf)
+const obj = BLOCK_POST.toJSON(buf)
+const obj = UNBLOCK_POST.toJSON(buf)
 ```
 
 
@@ -152,7 +163,21 @@ cable is capable of generating.
     "username": "cabler",
     "offset": 0,
     "text": "h€llo world",
-    "topic": "introduce yourself to the friendly crowd of likeminded folx"
+    "topic": "introduce yourself to the friendly crowd of likeminded folx",
+    "oldest": 40,
+    "recipients": [
+      "a6bac4f48e10f3e036e3915a583977b900e048304f7527b6bf299356219d1e91",
+      "2abcc76c670e32d37fd4233a6ea60fd39a3b246c4ac4bfd43a74639360ff7688",
+      "89d1baf8b98a135e7a9ab7720dbd809e234a61054187ed8bc1022c44e45010d6"
+    ],
+    "recipient": "a6bac4f48e10f3e036e3915a583977b900e048304f7527b6bf299356219d1e91",
+    "action": 0,
+    "role": 0,
+    "reason": "the reason is entirely mine own",
+    "privacy": 0,
+    "drop": 0,
+    "undrop": 1,
+    "notify": 1
   },
   "posthash": null
 }
@@ -234,6 +259,25 @@ cable is capable of generating.
     "limit": 20
   },
   "posthash": "f0878f4a7dff80ce1936212b773c305128df0c3d0e1dae1b17f83d03771cd9e2"
+}
+{
+  "name": "moderation state request",
+  "type": "request",
+  "id": 8,
+  "binary": "26080000000095050429010764656661756c74036465760c696e74726f64756374696f6e000028",
+  "obj": {
+    "msgLen": 38,
+    "msgType": 8,
+    "reqid": "95050429",
+    "ttl": 1,
+    "channels": [
+      "default",
+      "dev",
+      "introduction"
+    ],
+    "future": 0,
+    "oldest": 40
+  }
 }
 {
   "name": "hash response",
@@ -336,10 +380,13 @@ cable is capable of generating.
     ],
     "postType": 2,
     "timestamp": 80,
-    "key": "name",
-    "value": "cabler"
-  },
-  "posthash": "75c77c259d564f3b29a431963d7243ff83811075ba80fe5e01e2e8a18ad06fab"
+    "info": [
+      [
+        "name",
+        "cabler"
+      ]
+    ]
+  }
 }
 {
   "name": "post/topic",
@@ -392,5 +439,96 @@ cable is capable of generating.
     "timestamp": 80
   },
   "posthash": "540b27c2e09a14d8405a892913bf9b2b5131db4210fe82696b5d6a12ba1fe9ed"
+}
+{
+  "name": "post/role",
+  "type": "post",
+  "id": 6,
+  "binary": "25b272a71555322d40efe449a7f99af8fd364b92d350f1664481b2da340a02d0f487aa1356906bdf71573248e4615329eaf392f0996a7decf275fcfaf30ee3a35e6ba0b2953eb17ded9c3f239d3ae2048e13c7338563bb8aef78ab74063b2100015049d089a650aa896cb25ec35258653be4df196b4a5e5b6db7ed024aaa89e1b306501f74686520726561736f6e20697320656e746972656c79206d696e65206f776e000764656661756c74a6bac4f48e10f3e036e3915a583977b900e048304f7527b6bf299356219d1e9100",
+  "obj": {
+    "publicKey": "25b272a71555322d40efe449a7f99af8fd364b92d350f1664481b2da340a02d0",
+    "signature": "f487aa1356906bdf71573248e4615329eaf392f0996a7decf275fcfaf30ee3a35e6ba0b2953eb17ded9c3f239d3ae2048e13c7338563bb8aef78ab74063b2100",
+    "links": [
+      "5049d089a650aa896cb25ec35258653be4df196b4a5e5b6db7ed024aaa89e1b3"
+    ],
+    "postType": 6,
+    "timestamp": 80,
+    "reason": "the reason is entirely mine own",
+    "privacy": 0,
+    "channel": "default",
+    "recipient": "a6bac4f48e10f3e036e3915a583977b900e048304f7527b6bf299356219d1e91",
+    "role": 0
+  }
+}
+{
+  "name": "post/moderation",
+  "type": "post",
+  "id": 7,
+  "binary": "25b272a71555322d40efe449a7f99af8fd364b92d350f1664481b2da340a02d09ac00f42db0cfc55575800926954cfe03a15c16132ecde2a6ca8b7365a3e9eec9786c8569e287bcbfff158e584637a0ce235e541acc3bc16d28fcb1024309405015049d089a650aa896cb25ec35258653be4df196b4a5e5b6db7ed024aaa89e1b307501f74686520726561736f6e20697320656e746972656c79206d696e65206f776e000764656661756c7403a6bac4f48e10f3e036e3915a583977b900e048304f7527b6bf299356219d1e912abcc76c670e32d37fd4233a6ea60fd39a3b246c4ac4bfd43a74639360ff768889d1baf8b98a135e7a9ab7720dbd809e234a61054187ed8bc1022c44e45010d600",
+  "obj": {
+    "publicKey": "25b272a71555322d40efe449a7f99af8fd364b92d350f1664481b2da340a02d0",
+    "signature": "9ac00f42db0cfc55575800926954cfe03a15c16132ecde2a6ca8b7365a3e9eec9786c8569e287bcbfff158e584637a0ce235e541acc3bc16d28fcb1024309405",
+    "links": [
+      "5049d089a650aa896cb25ec35258653be4df196b4a5e5b6db7ed024aaa89e1b3"
+    ],
+    "postType": 7,
+    "timestamp": 80,
+    "reason": "the reason is entirely mine own",
+    "privacy": 0,
+    "channel": "default",
+    "recipients": [
+      "a6bac4f48e10f3e036e3915a583977b900e048304f7527b6bf299356219d1e91",
+      "2abcc76c670e32d37fd4233a6ea60fd39a3b246c4ac4bfd43a74639360ff7688",
+      "89d1baf8b98a135e7a9ab7720dbd809e234a61054187ed8bc1022c44e45010d6"
+    ],
+    "action": 0
+  }
+}
+{
+  "name": "post/block",
+  "type": "post",
+  "id": 8,
+  "binary": "25b272a71555322d40efe449a7f99af8fd364b92d350f1664481b2da340a02d0e5fffd29b2057983fd427b41164b9a7aeb1ff0dd770f2f21f0f253cdccca063c39c041e81727db5c87810d72a717f0ddf6689734b0d2680680067ff99ea61104015049d089a650aa896cb25ec35258653be4df196b4a5e5b6db7ed024aaa89e1b308501f74686520726561736f6e20697320656e746972656c79206d696e65206f776e0003a6bac4f48e10f3e036e3915a583977b900e048304f7527b6bf299356219d1e912abcc76c670e32d37fd4233a6ea60fd39a3b246c4ac4bfd43a74639360ff768889d1baf8b98a135e7a9ab7720dbd809e234a61054187ed8bc1022c44e45010d60001",
+  "obj": {
+    "publicKey": "25b272a71555322d40efe449a7f99af8fd364b92d350f1664481b2da340a02d0",
+    "signature": "e5fffd29b2057983fd427b41164b9a7aeb1ff0dd770f2f21f0f253cdccca063c39c041e81727db5c87810d72a717f0ddf6689734b0d2680680067ff99ea61104",
+    "links": [
+      "5049d089a650aa896cb25ec35258653be4df196b4a5e5b6db7ed024aaa89e1b3"
+    ],
+    "postType": 8,
+    "timestamp": 80,
+    "reason": "the reason is entirely mine own",
+    "privacy": 0,
+    "recipients": [
+      "a6bac4f48e10f3e036e3915a583977b900e048304f7527b6bf299356219d1e91",
+      "2abcc76c670e32d37fd4233a6ea60fd39a3b246c4ac4bfd43a74639360ff7688",
+      "89d1baf8b98a135e7a9ab7720dbd809e234a61054187ed8bc1022c44e45010d6"
+    ],
+    "drop": 0,
+    "notify": 1
+  }
+}
+{
+  "name": "post/unblock",
+  "type": "post",
+  "id": 9,
+  "binary": "25b272a71555322d40efe449a7f99af8fd364b92d350f1664481b2da340a02d030ea02c39b2c41e4de986f290b9f6e20ae190fb4cf357599103315aa4040dfa297f288fe3617b3febe5faea7aa7f381ee046823bfb371c45062eabda95c6430e015049d089a650aa896cb25ec35258653be4df196b4a5e5b6db7ed024aaa89e1b309501f74686520726561736f6e20697320656e746972656c79206d696e65206f776e0003a6bac4f48e10f3e036e3915a583977b900e048304f7527b6bf299356219d1e912abcc76c670e32d37fd4233a6ea60fd39a3b246c4ac4bfd43a74639360ff768889d1baf8b98a135e7a9ab7720dbd809e234a61054187ed8bc1022c44e45010d601",
+  "obj": {
+    "publicKey": "25b272a71555322d40efe449a7f99af8fd364b92d350f1664481b2da340a02d0",
+    "signature": "30ea02c39b2c41e4de986f290b9f6e20ae190fb4cf357599103315aa4040dfa297f288fe3617b3febe5faea7aa7f381ee046823bfb371c45062eabda95c6430e",
+    "links": [
+      "5049d089a650aa896cb25ec35258653be4df196b4a5e5b6db7ed024aaa89e1b3"
+    ],
+    "postType": 9,
+    "timestamp": 80,
+    "reason": "the reason is entirely mine own",
+    "privacy": 0,
+    "recipients": [
+      "a6bac4f48e10f3e036e3915a583977b900e048304f7527b6bf299356219d1e91",
+      "2abcc76c670e32d37fd4233a6ea60fd39a3b246c4ac4bfd43a74639360ff7688",
+      "89d1baf8b98a135e7a9ab7720dbd809e234a61054187ed8bc1022c44e45010d6"
+    ],
+    "undrop": 1
+  }
 }
 ```
