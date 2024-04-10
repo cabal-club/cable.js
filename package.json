@@ -4,8 +4,8 @@
   "description": "everything needed to sign and generate all posts and message types of the cable wire protocol",
   "main": "index.js",
   "scripts": {
-    "test": "$(npm bin)/tape test/*.js | $(npm bin)/tap-spec",
-    "bail": "$(npm bin)/tape test/*.js | $(npm bin)/tap-bail | $(npm bin)/tap-spec "
+    "test": "./node_modules/.bin/tape test/*.js | ./node_modules/.bin/tap-spec",
+    "bail": "./node_modules/.bin/tape test/*.js | ./node_modules/.bin/tap-bail | ./node_modules/.bin/tap-spec "
   },
   "author": "cable.js authors",
   "license": "LGPL-3.0-or-later",
